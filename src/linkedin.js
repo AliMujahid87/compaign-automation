@@ -16,8 +16,9 @@ async function sendLinkedInMessage(contact, template, subjectTemplate, attachmen
   const token = process.env.LINKEDIN_TOKEN;
   if (!token) throw new Error('Missing LINKEDIN_TOKEN in .env');
 
-  const message = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
-  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contact.name || '');
+  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const message = template.replace(/{{\s*name\s*}}/gi, contactName);
+  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contactName);
 
   const payload = {
     recipients: [{ "personUrn": `urn:li:person:${contact.linkedinId}` }],

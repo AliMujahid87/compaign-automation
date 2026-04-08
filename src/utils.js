@@ -16,7 +16,7 @@ function parseCSV(filePath) {
         // Normalize keys to lowercase
         const normalizedRow = {};
         for (const key in row) {
-          normalizedRow[key.toLowerCase()] = row[key];
+          normalizedRow[key.trim().toLowerCase()] = row[key];
         }
         records.push(normalizedRow);
       })

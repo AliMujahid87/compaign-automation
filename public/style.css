@@ -178,5 +178,53 @@ td, th {
   color: var(--text);
 }
 
+.auth-settings h3 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.auth-btn {
+  text-decoration: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.gmail-btn {
+  background: rgba(234, 67, 53, 0.2);
+  border: 1px solid rgba(234, 67, 53, 0.4);
+}
+.gmail-btn:hover {
+  background: rgba(234, 67, 53, 0.3);
+  box-shadow: 0 0 15px rgba(234, 67, 53, 0.2);
+}
+
+.linkedin-btn {
+  background: rgba(10, 102, 194, 0.2);
+  border: 1px solid rgba(10, 102, 194, 0.4);
+}
+.linkedin-btn:hover {
+  background: rgba(10, 102, 194, 0.3);
+  box-shadow: 0 0 15px rgba(10, 102, 194, 0.2);
+}
+
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

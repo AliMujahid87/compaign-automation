@@ -13,7 +13,8 @@ require('dotenv').config();
  * `template` is a string with {{name}} placeholder.
  */
 async function sendDiscordMessage(contact, template, subjectTemplate, attachment = null) {
-  const message = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
+  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const message = template.replace(/{{\s*name\s*}}/gi, contactName);
 
   // Prefer webhook if provided (simpler, no DM creation needed)
   if (contact.webhookUrl) {

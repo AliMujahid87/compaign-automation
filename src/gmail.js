@@ -21,8 +21,9 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   
-  const messageBody = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
-  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contact.name || '');
+  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
+  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contactName);
 
   let rawMessage;
 

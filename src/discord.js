@@ -7,7 +7,12 @@ require('dotenv').config();
  * `contact` should contain either `discordId` (user ID) or `webhookUrl`.
  * `template` is a string with {{name}} placeholder.
  */
-async function sendDiscordMessage(contact, template) {
+/**
+ * Send a Discord message via bot token (DM) or webhook.
+ * `contact` should contain either `discordId` (user ID) or `webhookUrl`.
+ * `template` is a string with {{name}} placeholder.
+ */
+async function sendDiscordMessage(contact, template, subjectTemplate, attachment = null) {
   const message = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
 
   // Prefer webhook if provided (simpler, no DM creation needed)

@@ -1,13 +1,13 @@
-// src/gmail.js
 const { google } = require('googleapis');
 require('dotenv').config();
+const fs = require('fs');
 
 /**
  * Send an email via Gmail API.
  * `contact` must contain `email` and `name`.
  * `template` is a string with {{name}} placeholder.
  */
-async function sendGmailMessage(contact, template) {
+async function sendGmailMessage(contact, template, subjectTemplate, attachment = null) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
@@ -20,15 +20,44 @@ async function sendGmailMessage(contact, template) {
   oauth2Client.setCredentials(JSON.parse(token));
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  // ... rest of the logic remains similar but uses the client for refreshing if needed
-  const message = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
-  const rawMessage = [
-    `To: ${contact.email}`,
-    'Subject: Personalized Outreach',
-    'Content-Type: text/html; charset=utf-8',
-    '',
-    message,
-  ].join('\n');
+  
+  const messageBody = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
+  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contact.name || '');
+
+  let rawMessage;
+
+  if (attachment) {
+    const boundary = '____boundary____';
+    const fileContent = fs.readFileSync(attachment.path).toString('base64');
+    
+    rawMessage = [
+      `To: ${contact.email}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      messageBody,
+      '',
+      `--${boundary}`,
+      `Content-Type: ${attachment.mimetype}; name="${attachment.originalname}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${attachment.originalname}"`,
+      '',
+      fileContent,
+      `--${boundary}--`
+    ].join('\r\n');
+  } else {
+    rawMessage = [
+      `To: ${contact.email}`,
+      `Subject: ${subject}`,
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      messageBody,
+    ].join('\n');
+  }
 
   const encoded = Buffer.from(rawMessage).toString('base64url');
   const res = await gmail.users.messages.send({

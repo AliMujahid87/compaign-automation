@@ -7,14 +7,21 @@ require('dotenv').config();
  * `contact` should contain at least `linkedinId` and `name` fields.
  * `template` is a string with {{name}} placeholder.
  */
-async function sendLinkedInMessage(contact, template) {
+/**
+ * Send a LinkedIn message (InMail / connection request) to a contact.
+ * `contact` should contain at least `linkedinId` and `name` fields.
+ * `template` is a string with {{name}} placeholder.
+ */
+async function sendLinkedInMessage(contact, template, subjectTemplate, attachment = null) {
   const token = process.env.LINKEDIN_TOKEN;
   if (!token) throw new Error('Missing LINKEDIN_TOKEN in .env');
 
   const message = template.replace(/{{\s*name\s*}}/gi, contact.name || '');
+  const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contact.name || '');
+
   const payload = {
     recipients: [{ "personUrn": `urn:li:person:${contact.linkedinId}` }],
-    subject: 'Personalized Outreach',
+    subject: subject,
     body: message,
   };
 

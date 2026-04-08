@@ -38,11 +38,20 @@ app.get('/api/gmail/callback', async (req, res) => {
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// POST /api/send/:platform – expects multipart/form-data with CSV and JSON body { message }
-app.post('/api/send/:platform', upload.single('contacts'), async (req, res) => {
+// POST /api/send/:platform – expects multipart/form-data with CSV, Subject and JSON body { message }
+app.post('/api/send/:platform', upload.fields([
+  { name: 'contacts', maxCount: 1 },
+  { name: 'attachment', maxCount: 1 }
+]), async (req, res) => {
   const platform = req.params.platform.toLowerCase();
-  const csvPath = req.file.path;
-  const { message } = req.body; // message template with {{name}}
+  
+  if (!req.files || !req.files.contacts) {
+    return res.status(400).json({ error: 'Contacts CSV file is required' });
+  }
+
+  const csvPath = req.files.contacts[0].path;
+  const attachment = req.files.attachment ? req.files.attachment[0] : null;
+  const { message, subject } = req.body; 
 
   try {
     const contacts = await parseCSV(csvPath);
@@ -52,13 +61,13 @@ app.post('/api/send/:platform', upload.single('contacts'), async (req, res) => {
         let sendResult;
         switch (platform) {
           case 'linkedin':
-            sendResult = await sendLinkedInMessage(contact, message);
+            sendResult = await sendLinkedInMessage(contact, message, subject);
             break;
           case 'gmail':
-            sendResult = await sendGmailMessage(contact, message);
+            sendResult = await sendGmailMessage(contact, message, subject, attachment);
             break;
           case 'discord':
-            sendResult = await sendDiscordMessage(contact, message);
+            sendResult = await sendDiscordMessage(contact, message, subject, attachment);
             break;
           default:
             throw new Error('Unsupported platform');

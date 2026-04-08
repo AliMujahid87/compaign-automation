@@ -54,44 +54,80 @@ h1 {
 label {
   display: block;
   text-align: left;
-  margin-top: 0.8rem;
   font-weight: 500;
   color: var(--text);
+  font-size: 0.9rem;
 }
 
-input[type="file"], select, textarea {
+label i {
+  margin-right: 8px;
+  color: var(--accent);
+  width: 18px;
+  text-align: center;
+}
+
+input[type="file"], input[type="text"], select, textarea {
   width: 100%;
-  padding: 0.6rem;
-  margin-top: 0.3rem;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  background: rgba(255,255,255,0.05);
+  padding: 0.8rem;
+  margin-top: 0.4rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
   color: var(--text);
   font-family: var(--font);
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23e0e0e0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.401 5 2.768 5h9.464c.367 0 .583.355.317.658l-4.796 5.482a.503.503 0 0 1-.786 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  cursor: pointer;
+}
+
+select option {
+  background: #1a1a2e;
+  color: var(--text);
+  padding: 10px;
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 0 10px rgba(58, 134, 255, 0.2);
+}
+
+.form-group {
+  margin-bottom: 1.2rem;
+  text-align: left;
 }
 
 .primary-btn {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   width: 100%;
-  padding: 0.8rem;
-  background: var(--accent);
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--accent) 0%, #3a86ff 100%);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   font-weight: 600;
+  font-size: 1rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .primary-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 120, 255, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 114, 255, 0.5);
+  filter: brightness(1.1);
+}
+
+.primary-btn:active {
+  transform: translateY(-1px);
 }
 
 .secondary-btn {

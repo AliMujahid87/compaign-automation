@@ -8,6 +8,12 @@ const { sendLinkedInMessage } = require('./src/linkedin');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
 const { sendDiscordMessage } = require('./src/discord');
 
+const app = express();
+const upload = multer({ dest: 'uploads/' });
+
+app.use(express.static('public'));
+app.use(express.json());
+
 // Gmail OAuth routes
 app.get('/api/gmail/auth', (req, res) => {
   const url = getGmailAuthUrl();
@@ -28,12 +34,6 @@ app.get('/api/gmail/callback', async (req, res) => {
     res.status(500).send('Error retrieving token: ' + err.message);
   }
 });
-
-const app = express();
-const upload = multer({ dest: 'uploads/' });
-
-app.use(express.static('public'));
-app.use(express.json());
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

@@ -1,6 +1,6 @@
 // src/utils.js
 const fs = require('fs');
-const csv = require('csv-parse');
+const { parse } = require('csv-parse');
 const { stringify } = require('csv-stringify');
 
 /**
@@ -11,7 +11,7 @@ function parseCSV(filePath) {
   return new Promise((resolve, reject) => {
     const records = [];
     fs.createReadStream(filePath)
-      .pipe(csv({ columns: true, trim: true }))
+      .pipe(parse({ columns: true, trim: true }))
       .on('data', (row) => {
         // Normalize keys to lowercase
         const normalizedRow = {};

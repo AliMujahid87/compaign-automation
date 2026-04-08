@@ -12,7 +12,14 @@ function parseCSV(filePath) {
     const records = [];
     fs.createReadStream(filePath)
       .pipe(csv({ columns: true, trim: true }))
-      .on('data', (row) => records.push(row))
+      .on('data', (row) => {
+        // Normalize keys to lowercase
+        const normalizedRow = {};
+        for (const key in row) {
+          normalizedRow[key.toLowerCase()] = row[key];
+        }
+        records.push(normalizedRow);
+      })
       .on('end', () => resolve(records))
       .on('error', (err) => reject(err));
   });

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campaign Automation</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>🚀 Campaign Automation</h1>
+    <form id="campaignForm" class="glass-card">
+      <label for="platform">Platform</label>
+      <select id="platform" name="platform" required>
+        <option value="linkedin">LinkedIn</option>
+        <option value="gmail">Gmail</option>
+        <option value="discord">Discord</option>
+      </select>
+
+      <label for="contacts">Contacts CSV</label>
+      <input type="file" id="contacts" name="contacts" accept=".csv" required />
+
+      <label for="message">Message Template</label>
+      <textarea id="message" name="message" rows="5" placeholder="Hello {{name}}, ..." required></textarea>
+
+      <button type="submit" class="primary-btn">Launch Campaign</button>
+    </form>
+
+    <div id="progress" class="hidden">
+      <p>Processing… <span id="status"></span></p>
+      <div class="progress-bar">
+        <div id="progressFill"></div>
+      </div>
+    </div>
+
+    <div id="results" class="hidden glass-card">
+      <h2>Results</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Status</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+      <button id="downloadBtn" class="secondary-btn">Download CSV</button>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('campaignForm');
+    const progressDiv = document.getElementById('progress');
+    const statusSpan = document.getElementById('status');
+    const progressFill = document.getElementById('progressFill');
+    const resultsDiv = document.getElementById('results');
+    const resultsBody = document.getElementById('resultsBody');
+    const downloadBtn = document.getElementById('downloadBtn');
+    let resultsData = [];
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const platform = document.getElementById('platform').value;
+      const file = document.getElementById('contacts').files[0];
+      const message = document.getElementById('message').value;
+
+      const formData = new FormData();
+      formData.append('contacts', file);
+      formData.append('message', message);
+
+      progressDiv.classList.remove('hidden');
+      statusSpan.textContent = 'Uploading…';
+      progressFill.style.width = '10%';
+
+      try {
+        const response = await fetch(`/api/send/${platform}`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        resultsData = data.results || [];
+        renderResults();
+        progressFill.style.width = '100%';
+        statusSpan.textContent = 'Done';
+        resultsDiv.classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+        statusSpan.textContent = 'Error';
+        alert('Campaign failed: ' + err.message);
+      }
+    });
+
+    function renderResults() {
+      resultsBody.innerHTML = '';
+      resultsData.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.name || ''}</td><td>${r.email || r.linkedinId || r.discordId || ''}</td><td>${r.status}</td><td>${r.details}</td>`;
+        resultsBody.appendChild(tr);
+      });
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      const csvRows = [];
+      const headers = Object.keys(resultsData[0] || {});
+      csvRows.push(headers.join(','));
+      resultsData.forEach(row => {
+        csvRows.push(headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}`).join(','));
+      });
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `campaign_${new Date().toISOString()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+
+</html>

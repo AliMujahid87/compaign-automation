@@ -5,9 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
-const { sendLinkedInMessage } = require('./src/linkedin');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
-const { sendDiscordMessage } = require('./src/discord');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -37,58 +35,7 @@ app.get('/api/gmail/callback', async (req, res) => {
   }
 });
 
-// LinkedIn OAuth routes
-app.get('/api/linkedin/auth', (req, res) => {
-  const scope = encodeURIComponent('openid profile email w_member_social'); 
-  const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.LINKEDIN_REDIRECT_URI)}&scope=${scope}`;
-  res.redirect(url);
-});
 
-app.get('/api/linkedin/callback', async (req, res) => {
-  const { code, error, error_description } = req.query;
-  
-  if (error) {
-    return res.status(500).send(`<h1>Auth Error: ${error}</h1><p>${error_description}</p>`);
-  }
-
-  try {
-    const response = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        client_id: process.env.LINKEDIN_CLIENT_ID,
-        client_secret: process.env.LINKEDIN_CLIENT_SECRET,
-        redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
-      }),
-    });
-    const data = await response.json();
-    
-    if (data.access_token) {
-      res.send(`
-        <body style="font-family:sans-serif; background:#0f0f0f; color:#fff; padding:40px; text-align:center;">
-          <h1 style="color:#3a86ff;">LinkedIn Authenticated!</h1>
-          <p>Copy the token below and add it to your <code>.env</code> file as <code>LINKEDIN_TOKEN</code>:</p>
-          <textarea onclick="this.select()" style="width:100%; max-width:600px; height:150px; background:#1a1a2e; color:#3a86ff; border:2px solid #3a86ff; padding:15px; border-radius:12px; font-family:monospace; font-size:14px; outline:none; cursor:pointer;" readonly>${data.access_token}</textarea>
-          <p style="margin-top:20px; opacity:0.7;">After saving <code>.env</code>, don't forget to restart your server!</p>
-        </body>
-      `);
-    } else {
-      res.status(500).send(`
-        <body style="font-family:sans-serif; background:#0f0f0f; color:#fff; padding:40px; text-align:center;">
-          <h1 style="color:#ff4b2b;">Token Exchange Failed</h1>
-          <p>LinkedIn returned the following response:</p>
-          <pre style="background:#1a1a2e; color:#ff4b2b; padding:20px; border-radius:8px; display:inline-block; text-align:left; border:1px solid #ff4b2b;">${JSON.stringify(data, null, 2)}</pre>
-          <br><br>
-          <a href="/" style="color:#3a86ff; text-decoration:none;">Go back and try again</a>
-        </body>
-      `);
-    }
-  } catch (err) {
-    res.status(500).send('Error: ' + err.message);
-  }
-});
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -119,14 +66,8 @@ app.post('/api/send/:platform', upload.fields([
       try {
         let sendResult;
         switch (platform) {
-          case 'linkedin':
-            sendResult = await sendLinkedInMessage(contact, message, subject);
-            break;
           case 'gmail':
             sendResult = await sendGmailMessage(contact, message, subject, attachment);
-            break;
-          case 'discord':
-            sendResult = await sendDiscordMessage(contact, message, subject, attachment);
             break;
           default:
             throw new Error('Unsupported platform');

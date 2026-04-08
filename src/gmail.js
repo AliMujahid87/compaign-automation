@@ -25,6 +25,14 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
   const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contactName);
 
+  // Convert newlines to <br> for HTML
+  const formattedHtml = messageBody.replace(/\n/g, '<br>');
+  const htmlMessage = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333;">
+      ${formattedHtml}
+    </div>
+  `;
+
   let rawMessage;
 
   if (attachment) {
@@ -38,9 +46,9 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
       '',
       `--${boundary}`,
-      'Content-Type: text/plain; charset=utf-8',
+      'Content-Type: text/html; charset=utf-8',
       '',
-      messageBody,
+      htmlMessage,
       '',
       `--${boundary}`,
       `Content-Type: ${attachment.mimetype}; name="${attachment.originalname}"`,
@@ -56,7 +64,7 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
       `Subject: ${subject}`,
       'Content-Type: text/html; charset=utf-8',
       '',
-      messageBody,
+      htmlMessage,
     ].join('\n');
   }
 

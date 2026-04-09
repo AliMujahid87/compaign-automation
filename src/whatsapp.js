@@ -99,45 +99,52 @@ async function sendWhatsAppMessage(contact, template) {
     throw new Error('WhatsApp not authenticated. Please scan the QR code first.');
   }
 
-  // Extract phone number from contact (Fuzzy search)
-  let phone = null;
-  const keywords = ['phone', 'mobile', 'whatsapp', 'number', 'contact', 'telephone', 'cell'];
+  const phoneKey = Object.keys(contact).find(k => 
+    ['phone', 'number', 'whatsapp', 'mobile', 'contact', 'telephone', 'cell'].includes(k.toLowerCase())
+  );
   
-  for (const key of Object.keys(contact)) {
-    const lowerKey = key.toLowerCase().replace(/[^a-z]/g, ''); // Remove spaces/special chars
-    if (keywords.some(kw => lowerKey.includes(kw))) {
-      phone = contact[key];
-      break;
-    }
+  if (!phoneKey || !contact[phoneKey]) {
+      throw new Error(`No phone column found. Headers: ${Object.keys(contact).join(', ')}`);
   }
 
-  if (!phone) {
-    throw new Error('No phone number column found. Your CSV headers: ' + Object.keys(contact).join(', '));
-  }
-
+  const phone = contact[phoneKey];
   const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
 
   // Format phone number: remove any non-digit chars
   let cleanPhone = phone.toString().replace(/\D/g, '');
   
-  // Handle local Pakistan format (03xx...) -> convert to 923xx...
-  if (cleanPhone.startsWith('0')) {
-      cleanPhone = '92' + cleanPhone.substring(1);
-  } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
-      cleanPhone = '92' + cleanPhone;
+  // High-level normalization
+  if (phone.toString().trim().startsWith('+')) {
+    // Already international starts with +, keep clean digits
+  } else if (phone.toString().trim().startsWith('00')) {
+    cleanPhone = cleanPhone.substring(2); // Remove leading 00
+  } else {
+    // Handle local Pakistan format (03xx...) -> convert to 923xx...
+    if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+        cleanPhone = '92' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('3') && cleanPhone.length === 10) {
+        cleanPhone = '92' + cleanPhone;
+    }
   }
   
   const chatId = cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
 
   try {
     console.log(`--- Attempting to send WA to: ${chatId} ---`);
-    const response = await client.sendMessage(chatId, messageBody);
-    console.log(`✅ Success for ${cleanPhone}`);
-    return { id: response.id.id, to: response.to };
+    console.log(`--- Verifying registration for ${chatId} ---`);
+    const isRegistered = await client.isRegisteredUser(chatId).catch(() => false);
+    
+    if (!isRegistered) {
+        return { status: 'error', details: 'Number not registered on WhatsApp' };
+    }
+
+    console.log(`--- Sending to ${chatId} ---`);
+    const msg = await client.sendMessage(chatId, messageBody);
+    return { status: 'sent', messageId: msg.id._serialized };
   } catch (err) {
-    console.error(`❌ Error for ${cleanPhone}:`, err.message);
-    throw new Error(err.message || 'Unknown WhatsApp Error');
+    console.error(`WhatsApp Send Error [${contact[Object.keys(contact)[0]]}]:`, err);
+    return { status: 'error', details: err.message };
   }
 }
 

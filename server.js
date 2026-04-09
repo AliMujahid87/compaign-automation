@@ -11,6 +11,14 @@ const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
+// In-memory campaign progress for real-time polling
+let currentCampaign = {
+  active: false,
+  results: [],
+  total: 0,
+  processed: 0
+};
+
 app.use(express.static('public'));
 app.use(express.json());
 
@@ -55,31 +63,44 @@ app.post('/api/whatsapp/init', (req, res) => {
   res.json({ status: 'initializing' });
 });
 
-// Health check
+// Health check & Progress polling
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// POST /api/send/:platform
-app.post('/api/send/:platform', upload.fields([
-  { name: 'contacts', maxCount: 1 },
-  { name: 'attachment', maxCount: 1 }
-]), async (req, res) => {
-  const platform = req.params.platform.toLowerCase();
-  
-  if (!req.files || !req.files.contacts) {
-    return res.status(400).json({ error: 'Contacts CSV file is required' });
+app.post('/api/csv/preview', upload.single('contacts'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const contacts = await parseCSV(req.file.path);
+    res.json({ contacts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
+});
 
-  const csvPath = req.files.contacts[0].path;
-  const attachment = req.files.attachment ? req.files.attachment[0] : null;
-  const { message, subject } = req.body; 
+app.get('/api/campaign/progress', (req, res) => {
+  res.json(currentCampaign);
+});
+
+// POST /api/send/:platform
+app.post('/api/send/:platform', upload.single('attachment'), async (req, res) => {
+  const platform = req.params.platform.toLowerCase();
+  const attachment = req.file || null;
+  const { message, subject, contactsJson } = req.body; 
 
   try {
-    const contacts = await parseCSV(csvPath);
-    console.log('--- Debug: First Contact Data ---');
-    console.log(contacts[0]);
-    console.log('---------------------------------');
+    const contacts = JSON.parse(contactsJson);
     
-    const results = [];
+    // Reset campaigns progress
+    currentCampaign = {
+      active: true,
+      results: [],
+      total: contacts.length,
+      processed: 0
+    };
+
+    // Return immediately to frontend
+    res.json({ status: 'started', total: contacts.length });
+
+    // Process in background
     for (const contact of contacts) {
       try {
         let sendResult;
@@ -93,15 +114,22 @@ app.post('/api/send/:platform', upload.fields([
           default:
             throw new Error('Unsupported platform');
         }
-        results.push({ ...contact, status: 'sent', details: sendResult });
+        currentCampaign.results.push({ ...contact, status: 'sent', details: sendResult });
       } catch (e) {
-        results.push({ ...contact, status: 'error', details: e.message });
+        currentCampaign.results.push({ ...contact, status: 'error', details: e.message });
+      } finally {
+        currentCampaign.processed++;
       }
+      // Small delay to prevent rate limit / navigation errors
+      await new Promise(r => setTimeout(r, 1500));
     }
-    res.json({ platform, results });
+    currentCampaign.active = false;
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    currentCampaign.active = false;
+    currentCampaign.results.push({ status: 'error', details: err.message });
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 

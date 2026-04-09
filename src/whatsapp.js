@@ -6,8 +6,13 @@ const fs = require('fs');
 let client;
 let qrData = null;
 let isAuthenticated = false;
+let isInitializing = false;
 
 function initWhatsApp() {
+  if (isInitializing || isAuthenticated) return;
+  isInitializing = true;
+  
+  console.log('--- Starting WhatsApp Initialization ---');
   client = new Client({
     authStrategy: new LocalAuth({
       dataPath: path.join(__dirname, '../.wwebjs_auth')
@@ -24,6 +29,7 @@ function initWhatsApp() {
   });
 
   client.on('qr', (qr) => {
+    isInitializing = false;
     qrData = qr;
     isAuthenticated = false;
     console.log('--- WhatsApp QR Received ---');
@@ -38,6 +44,7 @@ function initWhatsApp() {
   client.on('ready', () => {
     console.log('✅ WhatsApp Client is Ready!');
     isAuthenticated = true;
+    isInitializing = false;
     qrData = null;
     // Clean up QR file
     const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');

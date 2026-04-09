@@ -151,16 +151,20 @@
         };
 
         // WhatsApp Init / Gen QR logic
+        let currentlyInitializing = false;
         document.getElementById('genQR').onclick = async () => {
+            if (currentlyInitializing) return;
             const btn = document.getElementById('genQR');
             btn.disabled = true;
-            btn.innerText = 'Initializing...';
+            btn.innerText = '✨ Initializing...';
+            currentlyInitializing = true;
             try {
                 await fetch('/api/whatsapp/init', { method: 'POST' });
             } catch (e) {
                 console.error(e);
                 btn.innerText = 'Generate QR Code';
                 btn.disabled = false;
+                currentlyInitializing = false;
             }
         };
 
@@ -177,17 +181,22 @@
                     waText.innerHTML = '<span class="status-pill online">CONNECTED</span>';
                     waActCont.style.display = 'none';
                     qrContainer.style.display = 'none';
+                    currentlyInitializing = false;
                 } else {
                     waText.innerHTML = '<span class="status-pill offline">NOT CONNECTED</span>';
                     if (waStatus.qrAvailable) {
                         qrImage.src = '/whatsapp-qr.png?t=' + Date.now();
                         qrContainer.style.display = 'block';
                         waActCont.style.display = 'none';
+                        currentlyInitializing = false;
                     } else {
-                        qrContainer.style.display = 'none';
-                        waActCont.style.display = 'block';
-                        document.getElementById('genQR').innerText = 'Generate QR Code';
-                        document.getElementById('genQR').disabled = false;
+                        // Only show/enable button if we're not waiting for init
+                        if (!currentlyInitializing) {
+                            qrContainer.style.display = 'none';
+                            waActCont.style.display = 'block';
+                            document.getElementById('genQR').innerText = 'Generate QR Code';
+                            document.getElementById('genQR').disabled = false;
+                        }
                     }
                 }
 

@@ -228,11 +228,24 @@
             
             results.forEach(res => {
                 const tr = document.createElement('tr');
-                const recipient = res.phone || res.email || res.name || 'Unknown';
+                
+                // Smart finding for display name/phone
+                let recipient = 'Unknown';
+                const keywords = ['phone', 'mobile', 'whatsapp', 'number', 'email', 'name', 'contact'];
+                for (const key of Object.keys(res)) {
+                    const lowerKey = key.toLowerCase().replace(/[^a-z]/g, '');
+                    if (keywords.some(kw => lowerKey.includes(kw))) {
+                        recipient = res[key];
+                        break;
+                    }
+                }
+
                 tr.innerHTML = `
                     <td>${recipient}</td>
                     <td><span class="status-badge ${res.status}">${res.status}</span></td>
-                    <td style="color: var(--text-muted); font-size: 0.8rem;">${res.details && typeof res.details === 'object' ? 'Message Sent' : (res.details || 'OK')}</td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${res.details}">
+                        ${res.status === 'error' ? '❌ ' + res.details : '✅ Sent'}
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });

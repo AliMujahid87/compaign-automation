@@ -13,16 +13,12 @@ function initWhatsApp() {
       dataPath: path.join(__dirname, '../.wwebjs_auth')
     }),
     puppeteer: {
-      handleSIGINT: false,
+      headless: true,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process', // <- this one element can help child process
-        '--disable-gpu'
+        '--disable-extensions'
       ],
     }
   });
@@ -64,7 +60,11 @@ function initWhatsApp() {
     client.initialize(); // Try to re-initialize
   });
 
-  client.initialize().catch(err => console.error('Failed to initialize WhatsApp:', err));
+  client.initialize().then(() => {
+    console.log('🚀 WhatsApp Initialized call successful');
+  }).catch(err => {
+    console.error('❌ Failed to initialize WhatsApp:', err);
+  });
 }
 
 async function sendWhatsAppMessage(contact, template) {
@@ -72,42 +72,45 @@ async function sendWhatsAppMessage(contact, template) {
     throw new Error('WhatsApp not authenticated. Please scan the QR code first.');
   }
 
-  // Extract phone number from contact (case insensitive search)
+  // Extract phone number from contact (Fuzzy search)
   let phone = null;
-  const phoneKeys = ['phone', 'mobile', 'whatsapp', 'number', 'contact', 'telephone', 'cell'];
+  const keywords = ['phone', 'mobile', 'whatsapp', 'number', 'contact', 'telephone', 'cell'];
   
   for (const key of Object.keys(contact)) {
-    if (phoneKeys.includes(key.toLowerCase())) {
+    const lowerKey = key.toLowerCase().replace(/[^a-z]/g, ''); // Remove spaces/special chars
+    if (keywords.some(kw => lowerKey.includes(kw))) {
       phone = contact[key];
       break;
     }
   }
 
   if (!phone) {
-    throw new Error('No phone number found. Columns found: ' + Object.keys(contact).join(', '));
+    throw new Error('No phone number column found. Your CSV headers: ' + Object.keys(contact).join(', '));
   }
 
   const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
 
-  // Format phone number: remove any non-digit chars and ensure it has 92 (for Pak) or whatever
-  // For international format, whatsapp-web.js expects 923xxxxxxxxx@c.us
+  // Format phone number: remove any non-digit chars
   let cleanPhone = phone.toString().replace(/\D/g, '');
   
-  // If no country code, default to 92 (Pakistan) - though this is a bit specific,
-  // perhaps I should just ensure it ends with @c.us if it's already full format.
-  if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+  // Handle local Pakistan format (03xx...) -> convert to 923xx...
+  if (cleanPhone.startsWith('0')) {
+      cleanPhone = '92' + cleanPhone.substring(1);
+  } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
       cleanPhone = '92' + cleanPhone;
   }
   
   const chatId = cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
 
   try {
+    console.log(`--- Attempting to send WA to: ${chatId} ---`);
     const response = await client.sendMessage(chatId, messageBody);
+    console.log(`✅ Success for ${cleanPhone}`);
     return { id: response.id.id, to: response.to };
   } catch (err) {
-    console.error(`Failed to send WhatsApp to ${cleanPhone}:`, err);
-    throw err;
+    console.error(`❌ Error for ${cleanPhone}:`, err.message);
+    throw new Error(err.message || 'Unknown WhatsApp Error');
   }
 }
 

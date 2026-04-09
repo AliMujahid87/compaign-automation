@@ -292,12 +292,21 @@
         
         // Find identifier
         const phone = lead.phone || lead.Phone || lead.number || lead.whatsapp || lead.mobile || 'N/A';
-        const name = lead.name || lead.Name || lead.fullname || lead['first name'] || 'Unknown';
+        const email = lead.email || lead.Email || lead['email address'] || lead['e-mail'] || 'N/A';
+        const name = lead.name || lead.Name || lead.fullname || lead['first name'] || 'Unknown Lead';
+
+        const platform = document.getElementById('platform').value;
+        const contactInfo = platform === 'gmail' ? email : phone;
+        const hasContact = contactInfo !== 'N/A' && contactInfo !== '';
+
+        const infoDisplay = hasContact 
+          ? contactInfo 
+          : `<span style="color: #ff5252; font-weight: 700;"><i class="fas fa-triangle-exclamation"></i> Missing info</span>`;
 
         tr.innerHTML = `
-          <td><input type="checkbox" class="lead-check" data-index="${index}" checked onchange="updateSendButtonState()"></td>
+          <td><input type="checkbox" class="lead-check" data-index="${index}" ${hasContact ? 'checked' : 'disabled'} onchange="updateSendButtonState()"></td>
           <td>${name}</td>
-          <td style="color: var(--text-secondary);">${phone}</td>
+          <td style="color: var(--text-secondary);">${infoDisplay}</td>
         `;
         tbody.appendChild(tr);
       });

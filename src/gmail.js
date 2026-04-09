@@ -28,7 +28,14 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   
-  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || 'Recipient';
+  const emailKey = Object.keys(contact).find(k => k.toLowerCase().includes('email'));
+  const emailAddr = (contact[emailKey] || contact.email || '').toString().trim();
+  
+  if (!emailAddr || !emailAddr.includes('@')) {
+    throw new Error(`Invalid or missing email: ${emailAddr || 'None'}`);
+  }
+
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
   const subject = (subjectTemplate || 'Personalized Outreach').replace(/{{\s*name\s*}}/gi, contactName);
 
@@ -47,7 +54,7 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
     const fileContent = fs.readFileSync(attachment.path).toString('base64');
     
     rawMessage = [
-      `To: ${contact.email}`,
+      `To: ${emailAddr}`,
       `Subject: ${subject}`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/mixed; boundary="${boundary}"`,
@@ -67,12 +74,13 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
     ].join('\r\n');
   } else {
     rawMessage = [
-      `To: ${contact.email}`,
+      `To: ${emailAddr}`,
       `Subject: ${subject}`,
+      'MIME-Version: 1.0',
       'Content-Type: text/html; charset=utf-8',
       '',
       htmlMessage,
-    ].join('\n');
+    ].join('\r\n');
   }
 
   const encoded = Buffer.from(rawMessage).toString('base64url');

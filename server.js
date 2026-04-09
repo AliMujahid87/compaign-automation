@@ -7,7 +7,6 @@ const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
 const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/whatsapp');
-const { sendLinkedInMessage } = require('./src/linkedin');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -15,9 +14,13 @@ const upload = multer({ dest: 'uploads/' });
 app.use(express.static('public'));
 app.use(express.json());
 
+const GMAIL_TOKEN_PATH = path.join(__dirname, 'gmail_token.json');
+const fs = require('fs');
+
 // Gmail OAuth routes
 app.get('/api/gmail/status', (req, res) => {
-  res.json({ authenticated: !!process.env.GMAIL_TOKEN });
+  const hasToken = process.env.GMAIL_TOKEN || fs.existsSync(GMAIL_TOKEN_PATH);
+  res.json({ authenticated: !!hasToken });
 });
 
 app.get('/api/gmail/auth', (req, res) => {
@@ -29,11 +32,12 @@ app.get('/api/gmail/callback', async (req, res) => {
   const { code } = req.query;
   try {
     const tokens = await getGmailToken(code);
+    fs.writeFileSync(GMAIL_TOKEN_PATH, JSON.stringify(tokens));
     res.send(`
       <body style="font-family:sans-serif; background:#0f0f0f; color:#fff; padding:40px; text-align:center;">
-        <h1>Gmail Authenticated!</h1>
-        <p>Copy this and add to <code>.env</code> as <code>GMAIL_TOKEN</code>:</p>
-        <textarea style="width:100%; max-width:600px; height:150px; background:#1a1a2e; color:#accent; border:1px solid #3a86ff; padding:10px; border-radius:8px;">${JSON.stringify(tokens)}</textarea>
+        <h1 style="color: #64ffda;">Gmail Authenticated!</h1>
+        <p>Your session has been saved permanently. You can close this window now.</p>
+        <button onclick="window.close()" style="padding: 10px 20px; background: #3a86ff; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Close Window</button>
       </body>
     `);
   } catch (err) {
@@ -85,9 +89,6 @@ app.post('/api/send/:platform', upload.fields([
             break;
           case 'whatsapp':
             sendResult = await sendWhatsAppMessage(contact, message);
-            break;
-          case 'linkedin':
-            sendResult = await sendLinkedInMessage(contact, message);
             break;
           default:
             throw new Error('Unsupported platform');

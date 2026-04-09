@@ -13,7 +13,7 @@
   <div class="app-wrapper">
     <aside>
       <div class="logo">
-        <i class="fas fa-layer-group"></i> <span>NEXUS</span>
+        <span style="font-size: 1.8rem;">💎</span> <span>Outreach Pro</span>
       </div>
 
       <nav class="nav-section">
@@ -46,16 +46,6 @@
             <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; text-align: center;">Scan with WhatsApp to link</p>
           </div>
         </div>
-
-        <div class="integration-card">
-          <div class="integration-header">
-            <div class="platform-info">🔗 <span>LinkedIn</span></div>
-            <div id="linkedin-status">
-              <span class="status-pill online">ACTIVE</span>
-            </div>
-          </div>
-          <button onclick="alert('LinkedIn authenticated via .env')" class="btn-ghost">Manage Access</button>
-        </div>
       </nav>
 
       <div style="padding: 20px; background: rgba(255,255,255,0.03); border-radius: 16px;">
@@ -87,9 +77,6 @@
                 </div>
                 <div class="option" data-value="whatsapp" data-label="WhatsApp Direct" data-icon="fab fa-whatsapp" data-color="#25d366">
                   <span class="icon-box" style="background: rgba(37, 211, 102, 0.15); color: #25d366;"><i class="fab fa-whatsapp"></i></span> WhatsApp Direct
-                </div>
-                <div class="option" data-value="linkedin" data-label="LinkedIn Connect" data-icon="fab fa-linkedin" data-color="#0a66c2">
-                  <span class="icon-box" style="background: rgba(10, 102, 194, 0.15); color: #0a66c2;"><i class="fab fa-linkedin"></i></span> LinkedIn Connect
                 </div>
               </div>
               <input type="hidden" id="platform" value="gmail">
@@ -239,7 +226,7 @@
         platformOptions.classList.remove('show');
         
         // Field visibility
-        const display = (val === 'whatsapp' || val === 'linkedin') ? 'none' : 'block';
+        const display = (val === 'whatsapp') ? 'none' : 'block';
         document.getElementById('subjectGroup').style.display = display;
         document.getElementById('attachmentGroup').style.display = display;
       };
@@ -309,12 +296,12 @@
         }
 
         const statusClass = res.status === 'sent' ? 'online' : 'offline';
-        const log = res.status === 'error' ? `❌ ${res.details}` : `✅ Pipeline Verified`;
+        const log = res.status === 'error' ? `❌ ${res.details}` : `✅ Transmission Verified`;
 
         tr.innerHTML = `
           <td><strong>${ident}</strong></td>
           <td><span class="status-pill ${statusClass}">${res.status.toUpperCase()}</span></td>
-          <td style="color: var(--text-secondary); font-size: 0.85rem;">${log}</td>
+          <td style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">${log}</td>
         `;
         tbody.appendChild(tr);
       });

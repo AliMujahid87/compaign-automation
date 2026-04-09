@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 require('dotenv').config();
 const fs = require('fs');
+const path = require('path');
 
 /**
  * Send an email via Gmail API.
@@ -14,8 +15,14 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
     process.env.GMAIL_REDIRECT_URI
   );
 
-  const token = process.env.GMAIL_TOKEN;
-  if (!token) throw new Error('Missing GMAIL_TOKEN in .env. Please authenticate via /api/gmail/auth first.');
+  const GMAIL_TOKEN_PATH = path.join(__dirname, '../gmail_token.json');
+  let token = process.env.GMAIL_TOKEN;
+
+  if (!token && fs.existsSync(GMAIL_TOKEN_PATH)) {
+    token = fs.readFileSync(GMAIL_TOKEN_PATH, 'utf8');
+  }
+
+  if (!token) throw new Error('Missing Gmail Authentication. Please click "Connect Account" in the sidebar.');
 
   oauth2Client.setCredentials(JSON.parse(token));
 

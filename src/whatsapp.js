@@ -13,12 +13,28 @@ function initWhatsApp() {
   isInitializing = true;
   
   console.log('--- Starting WhatsApp Initialization ---');
+  
+  // Try to find local Chrome on Windows
+  const chromePaths = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+  ];
+  let executablePath = null;
+  for (const p of chromePaths) {
+    if (fs.existsSync(p)) {
+      executablePath = p;
+      break;
+    }
+  }
+
   client = new Client({
     authStrategy: new LocalAuth({
       dataPath: path.join(__dirname, '../.wwebjs_auth')
     }),
     puppeteer: {
-      headless: true,
+      headless: true, // Keep headless true for server, but use local chrome
+      executablePath: executablePath || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

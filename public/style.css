@@ -30,8 +30,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image: 
-    radial-gradient(circle at 20% 20%, rgba(58, 134, 255, 0.1) 0%, transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(100, 255, 218, 0.05) 0%, transparent 40%);
+    radial-gradient(circle at 10% 10%, rgba(58, 134, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 90% 90%, rgba(100, 255, 218, 0.05) 0%, transparent 50%);
 }
 
 /* Layout */
@@ -314,13 +314,20 @@ th {
 
 td { padding: 20px 24px; border-top: 1px solid var(--glass-border); font-size: 0.95rem; }
 
-#qr-container { padding: 20px; text-align: center; }
+#qr-container { 
+  padding: 1.5rem; 
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 20px;
+  margin-top: 10px;
+}
 #qr-image {
   background: white;
-  padding: 12px;
-  border-radius: 16px;
+  padding: 14px;
+  border-radius: 18px;
   max-width: 220px;
   margin: 0 auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 /* Animations */
@@ -343,3 +350,6 @@ td { padding: 20px 24px; border-top: 1px solid var(--glass-border); font-size: 0
   main { margin-left: 80px; padding: 30px; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+.hidden { display: none !important; }
+

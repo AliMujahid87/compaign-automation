@@ -8,8 +8,7 @@ const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
 const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/whatsapp');
 
-// Initialize WhatsApp Client on start
-initWhatsApp();
+// initWhatsApp(); // Removed auto-init: only starts via button now
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -18,6 +17,10 @@ app.use(express.static('public'));
 app.use(express.json());
 
 // Gmail OAuth routes
+app.get('/api/gmail/status', (req, res) => {
+  res.json({ authenticated: !!process.env.GMAIL_TOKEN });
+});
+
 app.get('/api/gmail/auth', (req, res) => {
   const url = getGmailAuthUrl();
   res.redirect(url);
@@ -39,9 +42,13 @@ app.get('/api/gmail/callback', async (req, res) => {
   }
 });
 
-// WhatsApp Status route
 app.get('/api/whatsapp/status', (req, res) => {
   res.json(getWhatsAppStatus());
+});
+
+app.post('/api/whatsapp/init', (req, res) => {
+  initWhatsApp();
+  res.json({ status: 'initializing' });
 });
 
 // Health check

@@ -6,7 +6,6 @@
     <title>Outreach Pro | Premium Campaign Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Extra custom styles for icons */
         .icon-box { 
             width: 24px; 
             height: 24px; 
@@ -39,10 +38,16 @@
             
             <nav style="flex: 1;">
                 <p style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 15px;">Integrations</p>
+                
                 <div class="integration-card" style="margin-bottom: 12px;">
                     <div class="integration-item">
                         <span style="display: flex; align-items: center; gap: 8px;">📧 Gmail</span>
-                        <button id="authGmail" class="btn-ghost" style="padding: 4px 10px; font-size: 0.75rem;">Link</button>
+                        <div id="gmail-status-text">
+                            <span class="status-pill offline" style="padding: 2px 8px; font-size: 0.65rem;">NOT CONNECTED</span>
+                        </div>
+                    </div>
+                    <div id="gmail-auth-container" style="margin-top: 10px;">
+                        <button id="authGmail" class="btn-ghost" style="padding: 4px 10px; font-size: 0.75rem;">Link Account</button>
                     </div>
                 </div>
 
@@ -50,8 +55,11 @@
                     <div class="integration-item">
                         <span style="display: flex; align-items: center; gap: 8px;">💬 WhatsApp</span>
                         <div id="wa-status-text">
-                            <span class="status-pill offline" style="padding: 2px 8px; font-size: 0.65rem;">Off</span>
+                            <span class="status-pill offline" style="padding: 2px 8px; font-size: 0.65rem;">NOT CONNECTED</span>
                         </div>
+                    </div>
+                    <div id="wa-action-container" style="margin-top: 15px;">
+                        <button id="genQR" class="btn-main" style="padding: 10px 20px; font-size: 0.85rem; background: var(--accent); border-radius: 10px; width: auto; box-shadow: 0 4px 12px var(--accent-glow);">✨ Generate QR Code</button>
                     </div>
                     <div id="qr-container" style="display:none; margin-top: 10px;">
                         <img id="qr-image" src="" alt="QR" style="border: 4px solid #fff; border-radius: 8px;">
@@ -72,7 +80,6 @@
             </header>
 
             <div class="premium-card">
-                <!-- 1. Platform & Subject -->
                 <div class="form-grid">
                     <div class="field">
                         <label>Outreach Platform</label>
@@ -97,23 +104,20 @@
 
                     <div class="field" id="subjectGroup">
                         <label>Subject Line</label>
-                        <input type="text" id="subject" placeholder="Hi {{name}}, catch up?">
+                        <input type="text" id="subject" placeholder="Enter Subject">
                     </div>
                 </div>
 
-                <!-- 2. Message Body -->
                 <div class="field" style="margin-bottom: 24px;">
                     <label>Broadcast Message</label>
-                    <textarea id="message" rows="10" placeholder="Hi {{name}},\n\n..."></textarea>
+                    <textarea id="message" rows="10" placeholder="Write your message here..."></textarea>
                 </div>
 
-                <!-- 3. Optional Attachment -->
                 <div class="field" id="attachmentGroup" style="margin-bottom: 24px;">
                     <label>Internal Asset / Media (Optional)</label>
                     <input type="file" id="attachment">
                 </div>
 
-                <!-- 4. Audience (Moved to Bottom) -->
                 <div class="field audience-field" style="margin-bottom: 32px;">
                     <label style="color: var(--accent);">👥 Audience (CSV Data Library)</label>
                     <input type="file" id="contactsCsv" accept=".csv" style="background: transparent; border: none; padding: 0;">
@@ -123,7 +127,6 @@
                 <button id="sendBtn" class="btn-main">🚀 Launch Outreach Campaign</button>
             </div>
 
-            <!-- Report Table -->
             <div id="results" class="report-section" style="display:none;">
                 <div class="table-wrapper">
                     <table id="resultsTable">
@@ -147,31 +150,65 @@
             window.open('/api/gmail/auth', '_blank');
         };
 
-        // WhatsApp Status Polling
-        async function checkWhatsAppStatus() {
+        // WhatsApp Init / Gen QR logic
+        document.getElementById('genQR').onclick = async () => {
+            const btn = document.getElementById('genQR');
+            btn.disabled = true;
+            btn.innerText = 'Initializing...';
             try {
-                const res = await fetch('/api/whatsapp/status');
-                const status = await res.json();
-                
-                const statusText = document.getElementById('wa-status-text');
+                await fetch('/api/whatsapp/init', { method: 'POST' });
+            } catch (e) {
+                console.error(e);
+                btn.innerText = 'Generate QR Code';
+                btn.disabled = false;
+            }
+        };
+
+        async function checkStatus() {
+            try {
+                const waRes = await fetch('/api/whatsapp/status');
+                const waStatus = await waRes.json();
+                const waText = document.getElementById('wa-status-text');
+                const waActCont = document.getElementById('wa-action-container');
                 const qrContainer = document.getElementById('qr-container');
                 const qrImage = document.getElementById('qr-image');
 
-                if (status.authenticated) {
-                    statusText.innerHTML = '<span class="status-pill online">CONNECTED</span>';
+                if (waStatus.authenticated) {
+                    waText.innerHTML = '<span class="status-pill online">CONNECTED</span>';
+                    waActCont.style.display = 'none';
                     qrContainer.style.display = 'none';
                 } else {
-                    statusText.innerHTML = '<span class="status-pill offline">NOT CONNECTED</span>';
-                    qrImage.src = '/whatsapp-qr.png?t=' + Date.now();
-                    qrContainer.style.display = 'block';
+                    waText.innerHTML = '<span class="status-pill offline">NOT CONNECTED</span>';
+                    if (waStatus.qrAvailable) {
+                        qrImage.src = '/whatsapp-qr.png?t=' + Date.now();
+                        qrContainer.style.display = 'block';
+                        waActCont.style.display = 'none';
+                    } else {
+                        qrContainer.style.display = 'none';
+                        waActCont.style.display = 'block';
+                        document.getElementById('genQR').innerText = 'Generate QR Code';
+                        document.getElementById('genQR').disabled = false;
+                    }
+                }
+
+                const gmRes = await fetch('/api/gmail/status');
+                const gmStatus = await gmRes.json();
+                const gmText = document.getElementById('gmail-status-text');
+                const gmAuthCont = document.getElementById('gmail-auth-container');
+
+                if (gmStatus.authenticated) {
+                    gmText.innerHTML = '<span class="status-pill online">CONNECTED</span>';
+                    gmAuthCont.style.display = 'none';
+                } else {
+                    gmText.innerHTML = '<span class="status-pill offline">NOT CONNECTED</span>';
+                    gmAuthCont.style.display = 'block';
                 }
             } catch (e) { console.error(e); }
         }
 
-        setInterval(checkWhatsAppStatus, 3000);
-        checkWhatsAppStatus();
+        setInterval(checkStatus, 3000);
+        checkStatus();
 
-        // Custom Dropdown Logic
         const platformTrigger = document.getElementById('platformTrigger');
         const platformOptions = document.getElementById('platformOptions');
         const platformInput = document.getElementById('platform');
@@ -189,12 +226,8 @@
                 const label = opt.getAttribute('data-label');
                 const icon = opt.getAttribute('data-icon');
                 const color = opt.getAttribute('data-color');
-                
                 platformInput.value = val;
-                selectedLabel.innerHTML = `
-                    <span class="icon-box" style="background: ${color}22; color: ${color};">${icon}</span> ${label}
-                `;
-                
+                selectedLabel.innerHTML = `<span class="icon-box" style="background: ${color}22; color: ${color};">${icon}</span> ${label}`;
                 options.forEach(o => o.classList.remove('selected'));
                 opt.classList.add('selected');
                 platformTrigger.classList.remove('open');
@@ -218,7 +251,6 @@
             attachmentGroup.style.display = display;
         }
 
-        // Send Campaign
         const sendBtn = document.getElementById('sendBtn');
         sendBtn.onclick = async () => {
             const platform = document.getElementById('platform').value;
@@ -226,18 +258,14 @@
             const message = document.getElementById('message').value;
             const subject = document.getElementById('subject').value;
             const attachment = document.getElementById('attachment').files[0];
-
             if (!contacts || !message) return alert('Please upload CSV and write a message.');
-
             sendBtn.disabled = true;
             sendBtn.innerHTML = '✨ Processing System Pipeline...';
-
             const formData = new FormData();
             formData.append('contacts', contacts);
             formData.append('message', message);
             formData.append('subject', subject);
             if (attachment) formData.append('attachment', attachment);
-
             try {
                 const response = await fetch(`/api/send/${platform}`, { method: 'POST', body: formData });
                 const data = await response.json();
@@ -254,7 +282,6 @@
             const resultsDir = document.getElementById('results');
             const tbody = document.querySelector('#resultsTable tbody');
             tbody.innerHTML = '';
-            
             results.forEach(res => {
                 const tr = document.createElement('tr');
                 let recipient = 'Unknown';
@@ -266,12 +293,7 @@
                         break;
                     }
                 }
-
-                tr.innerHTML = `
-                    <td><strong>${recipient}</strong></td>
-                    <td><span class="status-pill ${res.status === 'sent' ? 'online' : 'offline'}">${res.status}</span></td>
-                    <td style="color: var(--text-secondary); font-size: 0.8rem;">${res.status === 'error' ? '❌ ' + res.details : '✅ System Verified'}</td>
-                `;
+                tr.innerHTML = `<td><strong>${recipient}</strong></td><td><span class="status-pill ${res.status === 'sent' ? 'online' : 'offline'}">${res.status}</span></td><td style="color: var(--text-secondary); font-size: 0.8rem;">${res.status === 'error' ? '❌ ' + res.details : '✅ System Verified'}</td>`;
                 tbody.appendChild(tr);
             });
             resultsDir.style.display = 'block';

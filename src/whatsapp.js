@@ -1,89 +1,135 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode');
+const path = require('path');
+const fs = require('fs');
 
 let client;
-let isReady = false;
+let qrData = null;
+let isAuthenticated = false;
+let isInitializing = false;
 
-/**
- * Initializes the WhatsApp client
- */
-const initWhatsApp = () => {
-    client = new Client({
-        authStrategy: new LocalAuth(), // Saves session locally so you don't have to scan every time
-        puppeteer: {
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        }
-    });
-
-    client.on('qr', (qr) => {
-        console.log('--- WHATSAPP QR CODE ---');
-        console.log('Scan this code with your WhatsApp app:');
-        qrcode.generate(qr, { small: true });
-    });
-
-    client.on('ready', () => {
-        console.log('✅ WhatsApp client is ready!');
-        isReady = true;
-    });
-
-    client.on('authenticated', () => {
-        console.log('✅ WhatsApp Authenticated!');
-    });
-
-    client.on('auth_failure', (msg) => {
-        console.error('❌ WhatsApp Auth failure:', msg);
-    });
-
-    client.initialize();
-};
-
-/**
- * Sends a WhatsApp message
- * @param {Object} contact - The contact object from CSV
- * @param {string} template - The message template
- * @returns {Promise<Object>}
- */
-const sendWhatsAppMessage = async (contact, template) => {
-    if (!isReady) {
-        throw new Error('WhatsApp client is not ready. Please scan the QR code in the terminal first.');
+function initWhatsApp() {
+  if (isInitializing || isAuthenticated) return;
+  isInitializing = true;
+  
+  console.log('--- Starting WhatsApp Initialization ---');
+  client = new Client({
+    authStrategy: new LocalAuth({
+      dataPath: path.join(__dirname, '../.wwebjs_auth')
+    }),
+    puppeteer: {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-extensions'
+      ],
     }
+  });
 
-    // Extract number and clean it
-    let number = contact.phone || contact.number || contact.contact;
-    if (!number) throw new Error('Phone number missing in CSV');
+  client.on('qr', (qr) => {
+    isInitializing = false;
+    qrData = qr;
+    isAuthenticated = false;
+    console.log('--- WhatsApp QR Received ---');
+    
+    // Save QR to file so frontend can pick it up
+    const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
+    qrcode.toFile(qrPath, qr, (err) => {
+      if (err) console.error('Error saving QR code:', err);
+    });
+  });
 
-    // Remove any non-numeric characters
-    number = number.toString().replace(/\D/g, '');
+  client.on('ready', () => {
+    console.log('✅ WhatsApp Client is Ready!');
+    isAuthenticated = true;
+    isInitializing = false;
+    qrData = null;
+    // Clean up QR file
+    const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
+    if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
+  });
 
-    // Add 92 (Pakistan) prefix if not present and the number seems local (optional, but good for UX)
-    // Actually, it's better to expect the user to provide the full international format
-    // or just append whatever country code is standard.
-    // For now, let's assume the user provides a format that works or we try to fix it.
-    if (!number.startsWith('92') && number.length === 10) {
-        number = '92' + number;
-    } else if (number.startsWith('0') && number.length === 11) {
-        number = '92' + number.substring(1);
+  client.on('authenticated', () => {
+    console.log('✅ WhatsApp Authenticated');
+    isAuthenticated = true;
+  });
+
+  client.on('auth_failure', (msg) => {
+    console.error('❌ WhatsApp Auth Failure:', msg);
+    isAuthenticated = false;
+  });
+
+  client.on('disconnected', (reason) => {
+    console.log('❌ WhatsApp Disconnected:', reason);
+    isAuthenticated = false;
+    // Try to re-initialize
+    if (client) {
+        client.initialize().catch(err => console.error('Re-init failed', err));
     }
+  });
 
-    const chatId = number + "@c.us";
+  client.initialize().then(() => {
+    console.log('🚀 WhatsApp Initialized call successful');
+  }).catch(err => {
+    console.error('❌ Failed to initialize WhatsApp:', err);
+    isInitializing = false;
+  });
+}
 
-    // Personalize template
-    let message = template;
-    for (const key in contact) {
-        const regex = new RegExp(`{{${key}}}`, 'g');
-        message = message.replace(regex, contact[key]);
+async function sendWhatsAppMessage(contact, template) {
+  if (!isAuthenticated) {
+    throw new Error('WhatsApp not authenticated. Please scan the QR code first.');
+  }
+
+  // Extract phone number from contact (Fuzzy search)
+  let phone = null;
+  const keywords = ['phone', 'mobile', 'whatsapp', 'number', 'contact', 'telephone', 'cell'];
+  
+  for (const key of Object.keys(contact)) {
+    const lowerKey = key.toLowerCase().replace(/[^a-z]/g, ''); // Remove spaces/special chars
+    if (keywords.some(kw => lowerKey.includes(kw))) {
+      phone = contact[key];
+      break;
     }
+  }
 
-    try {
-        const response = await client.sendMessage(chatId, message);
-        return { messageId: response.id.id };
-    } catch (err) {
-        throw new Error(`Failed to send WhatsApp message: ${err.message}`);
-    }
-};
+  if (!phone) {
+    throw new Error('No phone number column found. Your CSV headers: ' + Object.keys(contact).join(', '));
+  }
 
-module.exports = {
-    initWhatsApp,
-    sendWhatsAppMessage,
-    getWhatsAppStatus: () => isReady
-};
+  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
+
+  // Format phone number: remove any non-digit chars
+  let cleanPhone = phone.toString().replace(/\D/g, '');
+  
+  // Handle local Pakistan format (03xx...) -> convert to 923xx...
+  if (cleanPhone.startsWith('0')) {
+      cleanPhone = '92' + cleanPhone.substring(1);
+  } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+      cleanPhone = '92' + cleanPhone;
+  }
+  
+  const chatId = cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
+
+  try {
+    console.log(`--- Attempting to send WA to: ${chatId} ---`);
+    const response = await client.sendMessage(chatId, messageBody);
+    console.log(`✅ Success for ${cleanPhone}`);
+    return { id: response.id.id, to: response.to };
+  } catch (err) {
+    console.error(`❌ Error for ${cleanPhone}:`, err.message);
+    throw new Error(err.message || 'Unknown WhatsApp Error');
+  }
+}
+
+function getWhatsAppStatus() {
+  return {
+    authenticated: isAuthenticated,
+    qrAvailable: !!qrData
+  };
+}
+
+module.exports = { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus };

@@ -6,7 +6,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
-const { initWhatsApp, sendWhatsAppMessage } = require('./src/whatsapp');
+const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/whatsapp');
 const { sendLinkedInMessage } = require('./src/linkedin');
 
 const app = express();
@@ -15,10 +15,11 @@ const upload = multer({ dest: 'uploads/' });
 app.use(express.static('public'));
 app.use(express.json());
 
-// Initialize WhatsApp
-initWhatsApp();
-
 // Gmail OAuth routes
+app.get('/api/gmail/status', (req, res) => {
+  res.json({ authenticated: !!process.env.GMAIL_TOKEN });
+});
+
 app.get('/api/gmail/auth', (req, res) => {
   const url = getGmailAuthUrl();
   res.redirect(url);
@@ -40,18 +41,20 @@ app.get('/api/gmail/callback', async (req, res) => {
   }
 });
 
+// WhatsApp endpoints
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json(getWhatsAppStatus());
+});
 
+app.post('/api/whatsapp/init', (req, res) => {
+  initWhatsApp();
+  res.json({ status: 'initializing' });
+});
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
-// WhatsApp Status
-app.get('/api/whatsapp/status', (req, res) => {
-  const { getWhatsAppStatus } = require('./src/whatsapp');
-  res.json({ ready: getWhatsAppStatus() });
-});
-
-// POST /api/send/:platform – expects multipart/form-data with CSV, Subject and JSON body { message }
+// POST /api/send/:platform
 app.post('/api/send/:platform', upload.fields([
   { name: 'contacts', maxCount: 1 },
   { name: 'attachment', maxCount: 1 }
@@ -94,7 +97,6 @@ app.post('/api/send/:platform', upload.fields([
         results.push({ ...contact, status: 'error', details: e.message });
       }
     }
-    // Return results as JSON (frontend can generate CSV download)
     res.json({ platform, results });
   } catch (err) {
     console.error(err);

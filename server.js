@@ -6,12 +6,17 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
+const { initWhatsApp, sendWhatsAppMessage } = require('./src/whatsapp');
+const { sendLinkedInMessage } = require('./src/linkedin');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public'));
 app.use(express.json());
+
+// Initialize WhatsApp
+initWhatsApp();
 
 // Gmail OAuth routes
 app.get('/api/gmail/auth', (req, res) => {
@@ -39,6 +44,12 @@ app.get('/api/gmail/callback', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// WhatsApp Status
+app.get('/api/whatsapp/status', (req, res) => {
+  const { getWhatsAppStatus } = require('./src/whatsapp');
+  res.json({ ready: getWhatsAppStatus() });
+});
 
 // POST /api/send/:platform – expects multipart/form-data with CSV, Subject and JSON body { message }
 app.post('/api/send/:platform', upload.fields([
@@ -68,6 +79,12 @@ app.post('/api/send/:platform', upload.fields([
         switch (platform) {
           case 'gmail':
             sendResult = await sendGmailMessage(contact, message, subject, attachment);
+            break;
+          case 'whatsapp':
+            sendResult = await sendWhatsAppMessage(contact, message);
+            break;
+          case 'linkedin':
+            sendResult = await sendLinkedInMessage(contact, message);
             break;
           default:
             throw new Error('Unsupported platform');

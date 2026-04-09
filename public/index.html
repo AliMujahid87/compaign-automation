@@ -4,70 +4,93 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Campaign Automation</title>
+  <title>Nexus | Campaign Automation</title>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 
 <body>
   <div class="container">
-    <h1>🚀 Campaign Automation</h1>
+    <h1><i class="fas fa-layer-group"></i> NEXUS</h1>
 
-    <form id="campaignForm" class="glass-card">
-      <div class="form-group">
-        <label for="platform"><i class="fas fa-globe"></i> Select Platform</label>
-        <select id="platform" name="platform" required>
-          <option value="gmail">Gmail (Email Campaign)</option>
-        </select>
+    <div class="glass-card">
+      <form id="campaignForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="platform"><i class="fas fa-network-wired"></i> Platform</label>
+            <select id="platform" name="platform" required>
+              <option value="gmail">Gmail Outreach</option>
+              <option value="whatsapp">WhatsApp Direct</option>
+              <option value="linkedin">LinkedIn Connect</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="subjectGroup">
+            <label for="subject"><i class="fas fa-heading"></i> Subject Line</label>
+            <input type="text" id="subject" name="subject" placeholder="e.g. Hello {{name}}" required />
+          </div>
+
+          <div class="form-group full-width">
+            <label for="message"><i class="fas fa-pen-nib"></i> Message Template</label>
+            <textarea id="message" name="message" placeholder="Craft your message here... Use {{name}} for personalization." required></textarea>
+          </div>
+
+          <div class="form-group" id="attachmentGroup">
+            <label for="attachment"><i class="fas fa-paperclip"></i> Media Attachment</label>
+            <input type="file" id="attachment" name="attachment" />
+          </div>
+
+          <div class="form-group">
+            <label for="contacts"><i class="fas fa-file-csv"></i> Contact List (CSV)</label>
+            <input type="file" id="contacts" name="contacts" accept=".csv" required />
+          </div>
+        </div>
+
+        <button type="submit" class="primary-btn">
+          <i class="fas fa-paper-plane"></i> Launch Campaign
+        </button>
+      </form>
+
+      <div class="auth-container">
+        <p class="auth-title">Authentication & Setup</p>
+        <div class="auth-buttons">
+          <a href="/api/gmail/auth" class="auth-btn"><i class="fab fa-google"></i> Gmail Access</a>
+          <a href="#" class="auth-btn"><i class="fab fa-linkedin"></i> LinkedIn Access</a>
+          <div class="auth-btn" id="whatsappStatus"><i class="fab fa-whatsapp"></i> WhatsApp Ready</div>
+        </div>
       </div>
+    </div>
 
-      <div class="form-group">
-        <label for="subject"><i class="fas fa-heading"></i> Message Subject</label>
-        <input type="text" id="subject" name="subject" placeholder="e.g. Partnership Opportunity for {{name}}" required />
+    <div id="progress" class="hidden glass-card">
+      <div class="progress-info">
+        <span>Campaign Execution</span>
+        <span id="status">0%</span>
       </div>
-
-      <div class="form-group">
-        <label for="message"><i class="fas fa-comment-dots"></i> Message Template</label>
-        <textarea id="message" name="message" rows="5" placeholder="Hello {{name}}, ..." required></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="attachment"><i class="fas fa-paperclip"></i> Attachment (Optional)</label>
-        <input type="file" id="attachment" name="attachment" />
-      </div>
-
-      <div class="form-group">
-        <label for="contacts"><i class="fas fa-file-csv"></i> Target Contacts CSV</label>
-        <input type="file" id="contacts" name="contacts" accept=".csv" required />
-      </div>
-
-      <button type="submit" class="primary-btn">
-        <i class="fas fa-rocket"></i> Launch Campaign
-      </button>
-    </form>
-
-    <div id="progress" class="hidden">
-      <p>Processing… <span id="status"></span></p>
-      <div class="progress-bar">
-        <div id="progressFill"></div>
+      <div class="progress-container">
+        <div class="progress-bar" id="progressFill"></div>
       </div>
     </div>
 
     <div id="results" class="hidden glass-card">
-      <h2>Results</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Contact</th>
-            <th>Status</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody id="resultsBody"></tbody>
-      </table>
-      <button id="downloadBtn" class="secondary-btn">Download CSV</button>
+      <div class="results-header">
+        <h2>Execution Intelligence</h2>
+        <button id="downloadBtn" class="secondary-btn">
+          <i class="fas fa-download"></i> Export CSV
+        </button>
+      </div>
+      <div class="results-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Contact Name</th>
+              <th>Identifier</th>
+              <th>Status</th>
+              <th>Execution Details</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -79,11 +102,52 @@
     const resultsDiv = document.getElementById('results');
     const resultsBody = document.getElementById('resultsBody');
     const downloadBtn = document.getElementById('downloadBtn');
+    const platformSelect = document.getElementById('platform');
+    const subjectGroup = document.getElementById('subjectGroup');
+    const attachmentGroup = document.getElementById('attachmentGroup');
+    
     let resultsData = [];
+
+    // Check WhatsApp status
+    async function checkWhatsAppStatus() {
+      try {
+        const res = await fetch('/api/whatsapp/status');
+        const data = await res.json();
+        const statusBtn = document.getElementById('whatsappStatus');
+        if (data.ready) {
+          statusBtn.innerHTML = '<i class="fab fa-whatsapp"></i> WhatsApp Ready';
+          statusBtn.style.color = 'var(--secondary)';
+          statusBtn.style.borderColor = 'var(--secondary)';
+        } else {
+          statusBtn.innerHTML = '<i class="fab fa-whatsapp"></i> WhatsApp Not Logged In';
+          statusBtn.style.color = '#ff5252';
+          statusBtn.style.borderColor = '#ff5252';
+        }
+      } catch (e) {
+        console.error('Status check failed', e);
+      }
+    }
+    
+    // Poll status every 5 seconds
+    setInterval(checkWhatsAppStatus, 5000);
+    checkWhatsAppStatus();
+
+    // Toggle fields based on platform
+    platformSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'whatsapp') {
+        subjectGroup.classList.add('hidden');
+        attachmentGroup.classList.add('hidden');
+        document.getElementById('subject').required = false;
+      } else {
+        subjectGroup.classList.remove('hidden');
+        attachmentGroup.classList.remove('hidden');
+        document.getElementById('subject').required = true;
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const platform = document.getElementById('platform').value;
+      const platform = platformSelect.value;
       const contactsFile = document.getElementById('contacts').files[0];
       const attachmentFile = document.getElementById('attachment').files[0];
       const message = document.getElementById('message').value;
@@ -91,15 +155,13 @@
 
       const formData = new FormData();
       formData.append('contacts', contactsFile);
-      if (attachmentFile) {
-        formData.append('attachment', attachmentFile);
-      }
+      if (attachmentFile) formData.append('attachment', attachmentFile);
       formData.append('message', message);
       formData.append('subject', subject);
 
       progressDiv.classList.remove('hidden');
-      statusSpan.textContent = 'Uploading…';
-      progressFill.style.width = '10%';
+      statusSpan.textContent = 'Initializing...';
+      progressFill.style.width = '15%';
 
       try {
         const response = await fetch(`/api/send/${platform}`, {
@@ -107,15 +169,20 @@
           body: formData,
         });
         const data = await response.json();
+        
+        if (data.error) throw new Error(data.error);
+        
         resultsData = data.results || [];
         renderResults();
+        
         progressFill.style.width = '100%';
-        statusSpan.textContent = 'Done';
+        statusSpan.textContent = 'Completed';
         resultsDiv.classList.remove('hidden');
       } catch (err) {
         console.error(err);
-        statusSpan.textContent = 'Error';
-        alert('Campaign failed: ' + err.message);
+        statusSpan.textContent = 'Failed';
+        progressFill.style.background = '#ff5252';
+        alert('Transmission Error: ' + err.message);
       }
     });
 
@@ -123,7 +190,16 @@
       resultsBody.innerHTML = '';
       resultsData.forEach(r => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.name || ''}</td><td>${r.email || r.linkedinId || r.discordId || ''}</td><td>${r.status}</td><td>${r.details}</td>`;
+        const contactInfo = r.email || r.phone || r.number || 'N/A';
+        const statusClass = r.status === 'sent' ? 'status-sent' : 'status-error';
+        const statusLabel = r.status.toUpperCase();
+        
+        tr.innerHTML = `
+          <td>${r.name || 'N/A'}</td>
+          <td>${contactInfo}</td>
+          <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+          <td>${r.details || '-'}</td>
+        `;
         resultsBody.appendChild(tr);
       });
     }
@@ -133,13 +209,13 @@
       const headers = Object.keys(resultsData[0] || {});
       csvRows.push(headers.join(','));
       resultsData.forEach(row => {
-        csvRows.push(headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}`).join(','));
+        csvRows.push(headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(','));
       });
       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `campaign_${new Date().toISOString()}.csv`;
+      a.download = `nexus_report_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     });

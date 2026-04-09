@@ -6,6 +6,10 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
+const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/whatsapp');
+
+// Initialize WhatsApp Client on start
+initWhatsApp();
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -33,6 +37,11 @@ app.get('/api/gmail/callback', async (req, res) => {
   } catch (err) {
     res.status(500).send('Error: ' + err.message);
   }
+});
+
+// WhatsApp Status route
+app.get('/api/whatsapp/status', (req, res) => {
+  res.json(getWhatsAppStatus());
 });
 
 // Health check
@@ -66,6 +75,9 @@ app.post('/api/send/:platform', upload.fields([
         switch (platform) {
           case 'gmail':
             sendResult = await sendGmailMessage(contact, message, subject, attachment);
+            break;
+          case 'whatsapp':
+            sendResult = await sendWhatsAppMessage(contact, message);
             break;
           default:
             throw new Error('Unsupported platform');

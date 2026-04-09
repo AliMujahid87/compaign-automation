@@ -3,58 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campaign Automation</title>
+    <title>Campaign Automation | Premium Outreach</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Campaign Automation</h1>
+        <h1>🚀 Outreach Pro</h1>
         
-        <div class="card">
-            <h3>1. Gmail Authentication</h3>
-            <button id="authGmail" class="btn secondary">Link Gmail Account</button>
+        <div class="grid-cards">
+            <div class="card">
+                <h3>📧 Gmail Account</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Connect your Google account to send mass emails.</p>
+                <button id="authGmail" class="btn secondary">Link Gmail</button>
+            </div>
+
+            <div class="card">
+                <h3>💬 WhatsApp Status</h3>
+                <div id="whatsapp-info">
+                    <div id="wa-status-text">
+                        <span class="status-dot offline"></span> Checking...
+                    </div>
+                    <div id="qr-container" style="display:none;">
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Scan QR with WhatsApp</p>
+                        <img id="qr-image" src="" alt="WhatsApp QR">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="card">
-            <h3>2. Send Campaign</h3>
-            <div class="form-group">
-                <label>Platform</label>
-                <select id="platform">
-                    <option value="gmail">Gmail</option>
-                </select>
-            </div>
+            <h3>🎯 Campaign Details</h3>
             
-            <div class="form-group">
-                <label>Contacts CSV (Upload)</label>
-                <input type="file" id="contactsCsv" accept=".csv">
+            <div class="grid-cards" style="grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Outreach Platform</label>
+                    <div class="custom-select" id="platformWrapper">
+                        <div class="select-trigger" id="platformTrigger">
+                            <span id="selectedLabel">📧 Gmail (Email)</span>
+                            <div class="arrow"></div>
+                        </div>
+                        <div class="select-options" id="platformOptions">
+                            <div class="option selected" data-value="gmail" data-label="📧 Gmail (Email)">
+                                📧 Gmail (Email)
+                            </div>
+                            <div class="option" data-value="whatsapp" data-label="💬 WhatsApp (Mobile)">
+                                💬 WhatsApp (Mobile)
+                            </div>
+                        </div>
+                        <input type="hidden" id="platform" value="gmail">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Contacts CSV</label>
+                    <input type="file" id="contactsCsv" accept=".csv">
+                </div>
+            </div>
+
+            <div class="form-group" id="subjectGroup">
+                <label>Subject Line</label>
+                <input type="text" id="subject" placeholder="Hi {{name}}, checking in!">
             </div>
 
             <div class="form-group">
-                <label>Subject</label>
-                <input type="text" id="subject" placeholder="Outreach for {{name}}">
+                <label>Message Content</label>
+                <textarea id="message" rows="6" placeholder="Hi {{name}},\n\nI saw your profile and wanted to connect..."></textarea>
+                <p style="font-size: 0.75rem; color: var(--accent); margin-top: 5px;">Use {{name}} as a placeholder for personalization.</p>
             </div>
 
-            <div class="form-group">
-                <label>Message Body</label>
-                <textarea id="message" rows="8" placeholder="Hi {{name}}, ..."></textarea>
-            </div>
-
-            <div class="form-group">
+            <div class="form-group" id="attachmentGroup">
                 <label>Attachment (Optional)</label>
                 <input type="file" id="attachment">
             </div>
 
-            <button id="sendBtn" class="btn primary">Start Campaign</button>
+            <button id="sendBtn" class="btn primary">🚀 Blast Campaign</button>
         </div>
 
         <div id="results" class="results-area" style="display:none;">
-            <h3>Results</h3>
+            <h3>📊 Campaign Report</h3>
             <table id="resultsTable">
                 <thead>
                     <tr>
-                        <th>Contact</th>
+                        <th>Recipient</th>
                         <th>Status</th>
-                        <th>Details</th>
+                        <th>Log</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -63,10 +95,94 @@
     </div>
 
     <script>
+        // Gmail Auth
         document.getElementById('authGmail').onclick = () => {
             window.open('/api/gmail/auth', '_blank');
         };
 
+        // WhatsApp Status Polling
+        async function checkWhatsAppStatus() {
+            try {
+                const res = await fetch('/api/whatsapp/status');
+                const status = await res.json();
+                
+                const statusText = document.getElementById('wa-status-text');
+                const qrContainer = document.getElementById('qr-container');
+                const qrImage = document.getElementById('qr-image');
+
+                if (status.authenticated) {
+                    statusText.innerHTML = '<span class="status-dot online"></span> Connected';
+                    qrContainer.style.display = 'none';
+                } else {
+                    statusText.innerHTML = '<span class="status-dot offline"></span> Disconnected';
+                    // Check if QR is available on disk
+                    // We append timestamp to avoid caching
+                    qrImage.src = '/whatsapp-qr.png?t=' + Date.now();
+                    qrContainer.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Failed to fetch WA status', e);
+            }
+        }
+
+        setInterval(checkWhatsAppStatus, 3000);
+        checkWhatsAppStatus();
+
+        // Custom Dropdown Logic
+        const platformTrigger = document.getElementById('platformTrigger');
+        const platformOptions = document.getElementById('platformOptions');
+        const platformInput = document.getElementById('platform');
+        const selectedLabel = document.getElementById('selectedLabel');
+        const options = document.querySelectorAll('.option');
+
+        platformTrigger.onclick = () => {
+            platformTrigger.classList.toggle('open');
+            platformOptions.classList.toggle('show');
+        };
+
+        options.forEach(opt => {
+            opt.onclick = () => {
+                const val = opt.getAttribute('data-value');
+                const label = opt.getAttribute('data-label');
+                
+                // Update hidden input and label
+                platformInput.value = val;
+                selectedLabel.innerText = label;
+                
+                // Toggle classes
+                options.forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                
+                // Close dropdown
+                platformTrigger.classList.remove('open');
+                platformOptions.classList.remove('show');
+                
+                // Trigger visibility logic
+                updateFieldVisibility(val);
+            };
+        });
+
+        // Close on outside click
+        window.addEventListener('click', (e) => {
+            if (!document.getElementById('platformWrapper').contains(e.target)) {
+                platformTrigger.classList.remove('open');
+                platformOptions.classList.remove('show');
+            }
+        });
+
+        function updateFieldVisibility(platform) {
+            const subjectGroup = document.getElementById('subjectGroup');
+            const attachmentGroup = document.getElementById('attachmentGroup');
+            if (platform === 'whatsapp') {
+                subjectGroup.style.display = 'none';
+                attachmentGroup.style.display = 'none';
+            } else {
+                subjectGroup.style.display = 'block';
+                attachmentGroup.style.display = 'block';
+            }
+        }
+
+        // Send Campaign
         const sendBtn = document.getElementById('sendBtn');
         sendBtn.onclick = async () => {
             const platform = document.getElementById('platform').value;
@@ -80,7 +196,7 @@
             }
 
             sendBtn.disabled = true;
-            sendBtn.innerText = 'Sending...';
+            sendBtn.innerHTML = '<span>⚡</span> Processing...';
 
             const formData = new FormData();
             formData.append('contacts', contacts);
@@ -95,12 +211,13 @@
                 });
                 const data = await response.json();
                 
+                if (data.error) throw new Error(data.error);
                 showResults(data.results);
             } catch (err) {
-                alert('Error: ' + err.message);
+                alert('Campaign Error: ' + err.message);
             } finally {
                 sendBtn.disabled = false;
-                sendBtn.innerText = 'Start Campaign';
+                sendBtn.innerHTML = '🚀 Blast Campaign';
             }
         };
 
@@ -111,15 +228,17 @@
             
             results.forEach(res => {
                 const tr = document.createElement('tr');
+                const recipient = res.phone || res.email || res.name || 'Unknown';
                 tr.innerHTML = `
-                    <td>${res.email || res.name || 'Unknown'}</td>
-                    <td class="${res.status}">${res.status}</td>
-                    <td>${res.details || ''}</td>
+                    <td>${recipient}</td>
+                    <td><span class="status-badge ${res.status}">${res.status}</span></td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem;">${res.details && typeof res.details === 'object' ? 'Message Sent' : (res.details || 'OK')}</td>
                 `;
                 tbody.appendChild(tr);
             });
 
             resultsDir.style.display = 'block';
+            resultsDir.scrollIntoView({ behavior: 'smooth' });
         }
     </script>
 </body>

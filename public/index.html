@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Automation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Campaign Automation</h1>
+        
+        <div class="card">
+            <h3>1. Gmail Authentication</h3>
+            <button id="authGmail" class="btn secondary">Link Gmail Account</button>
+        </div>
+
+        <div class="card">
+            <h3>2. Send Campaign</h3>
+            <div class="form-group">
+                <label>Platform</label>
+                <select id="platform">
+                    <option value="gmail">Gmail</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Contacts CSV (Upload)</label>
+                <input type="file" id="contactsCsv" accept=".csv">
+            </div>
+
+            <div class="form-group">
+                <label>Subject</label>
+                <input type="text" id="subject" placeholder="Outreach for {{name}}">
+            </div>
+
+            <div class="form-group">
+                <label>Message Body</label>
+                <textarea id="message" rows="8" placeholder="Hi {{name}}, ..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Attachment (Optional)</label>
+                <input type="file" id="attachment">
+            </div>
+
+            <button id="sendBtn" class="btn primary">Start Campaign</button>
+        </div>
+
+        <div id="results" class="results-area" style="display:none;">
+            <h3>Results</h3>
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Contact</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('authGmail').onclick = () => {
+            window.open('/api/gmail/auth', '_blank');
+        };
+
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.onclick = async () => {
+            const platform = document.getElementById('platform').value;
+            const contacts = document.getElementById('contactsCsv').files[0];
+            const message = document.getElementById('message').value;
+            const subject = document.getElementById('subject').value;
+            const attachment = document.getElementById('attachment').files[0];
+
+            if (!contacts || !message) {
+                return alert('Please upload CSV and write a message.');
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.innerText = 'Sending...';
+
+            const formData = new FormData();
+            formData.append('contacts', contacts);
+            formData.append('message', message);
+            formData.append('subject', subject);
+            if (attachment) formData.append('attachment', attachment);
+
+            try {
+                const response = await fetch(`/api/send/${platform}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                showResults(data.results);
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerText = 'Start Campaign';
+            }
+        };
+
+        function showResults(results) {
+            const resultsDir = document.getElementById('results');
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = '';
+            
+            results.forEach(res => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${res.email || res.name || 'Unknown'}</td>
+                    <td class="${res.status}">${res.status}</td>
+                    <td>${res.details || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            resultsDir.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

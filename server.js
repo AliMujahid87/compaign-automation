@@ -120,8 +120,9 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
       } finally {
         currentCampaign.processed++;
       }
-      // Small delay to prevent rate limit / navigation errors
-      await new Promise(r => setTimeout(r, 1500));
+      // Safety Delay to mimic human behavior and improve delivery
+      const delay = Math.floor(Math.random() * (10000 - 5000 + 1) + 5000); 
+      await new Promise(r => setTimeout(r, delay));
     }
     currentCampaign.active = false;
 

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexus | Premium Outreach Dashboard</title>
+  <title>Nexus Pro | Premium Outreach Dashboard</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
@@ -13,7 +13,7 @@
   <div class="app-wrapper">
     <aside>
       <div class="logo">
-        <span style="font-size: 1.8rem;">💎</span> <span>Outreach Pro</span>
+        <span style="font-size: 1.8rem;">💎</span> <span>Nexus Pro</span>
       </div>
 
       <nav class="nav-section">
@@ -119,12 +119,24 @@
           <input type="file" id="attachment" />
         </div>
 
+        <div class="field" style="margin-top: 20px;">
+          <label>Target Region (for Auto-Formatting)</label>
+          <select id="countryCode" class="btn-ghost" style="width: 100%; text-align: left; background: rgba(255,255,255,0.05); padding: 12px;">
+            <option value="1">United States (+1)</option>
+            <option value="44">United Kingdom (+44)</option>
+            <option value="92" selected>Pakistan (+92)</option>
+            <option value="971">UAE (+971)</option>
+            <option value="1">Canada (+1)</option>
+            <option value="61">Australia (+61)</option>
+          </select>
+        </div>
+
         <div class="field audience-field">
           <label style="color: var(--accent);"><i class="fas fa-users-viewfinder"></i> Target Data Library (CSV)</label>
           <input type="file" id="contactsCsv" accept=".csv" style="display: none;" />
           <button onclick="document.getElementById('contactsCsv').click()" class="btn-ghost" style="width: auto; margin: 15px auto;">Select CSV File</button>
           <p id="fileName" style="font-size: 0.8rem; color: var(--text-secondary);">No file selected</p>
-          <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 5px;">Must include 'email' or 'phone' columns.</p>
+          <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 5px;">Must include phone/email columns.</p>
         </div>
 
         <div id="selection-container" class="field hidden" style="margin-top: 30px;">
@@ -311,13 +323,19 @@
         const tr = document.createElement('tr');
         
         // Find identifier
-        const phone = lead.phone || lead.Phone || lead.number || lead.whatsapp || lead.mobile || 'N/A';
-        const email = lead.email || lead.Email || lead['email address'] || lead['e-mail'] || 'N/A';
-        const name = lead.name || lead.Name || lead.fullname || lead['first name'] || 'Unknown Lead';
+        // Smart Detection: Kisi bhi column name mein agar 'phone' ya 'mail' ho to utha lo
+        const keys = Object.keys(lead);
+        const contactNameKey = keys.find(k => k.includes('name')) || keys[0];
+        const emailKey = keys.find(k => k.includes('email') || k.includes('mail'));
+        const phoneKey = keys.find(k => k.includes('phone') || k.includes('number') || k.includes('whatsapp') || k.includes('mobile'));
+
+        const name = lead[contactNameKey] || 'Unknown Lead';
+        const phone = lead[phoneKey] || 'N/A';
+        const email = lead[emailKey] || 'N/A';
 
         const platform = document.getElementById('platform').value;
         const contactInfo = platform === 'gmail' ? email : phone;
-        const hasContact = contactInfo !== 'N/A' && contactInfo !== '';
+        const hasContact = contactInfo && contactInfo !== 'N/A' && contactInfo !== '';
 
         const infoDisplay = hasContact 
           ? contactInfo 
@@ -357,6 +375,8 @@
       const subject = document.getElementById('subject').value;
       const attachment = document.getElementById('attachment').files[0];
       
+      const countryCode = document.getElementById('countryCode').value;
+      
       const selectedIndices = Array.from(document.querySelectorAll('.lead-check:checked')).map(ck => parseInt(ck.getAttribute('data-index')));
       const selectedContacts = selectedIndices.map(idx => parsedLeads[idx]);
 
@@ -369,6 +389,7 @@
       formData.append('contactsJson', JSON.stringify(selectedContacts));
       formData.append('message', message);
       formData.append('subject', subject);
+      formData.append('countryCode', countryCode);
       if (attachment) formData.append('attachment', attachment);
 
       try {
@@ -429,12 +450,14 @@
         }
 
         const statusClass = res.status === 'sent' ? 'online' : 'offline';
-        const log = res.status === 'error' ? `❌ ${res.details}` : `✅ Transmission Verified`;
+        const isError = res.status === 'error' || res.status.includes('fail');
+        const logIcon = isError ? '❌' : (res.status === 'sent' ? '✅' : '⚠️');
+        const logText = res.details || (res.status === 'sent' ? 'Transmission Verified' : 'Pending Verification');
 
         tr.innerHTML = `
           <td><strong>${ident}</strong></td>
           <td><span class="status-pill ${statusClass}">${res.status.toUpperCase()}</span></td>
-          <td style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">${log}</td>
+          <td style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">${logIcon} ${logText}</td>
         `;
         tbody.appendChild(tr);
       });

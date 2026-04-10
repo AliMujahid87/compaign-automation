@@ -120,7 +120,7 @@ function updateStats(sentCount, leadsCount) {
 app.post('/api/send/:platform', upload.single('attachment'), async (req, res) => {
   const platform = req.params.platform.toLowerCase();
   const attachment = req.file || null;
-  const { message, subject, contactsJson } = req.body; 
+  const { message, subject, contactsJson, countryCode } = req.body; 
 
   try {
     const contacts = JSON.parse(contactsJson);
@@ -147,13 +147,16 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
             sendResult = await sendGmailMessage(contact, message, subject, attachment);
             break;
           case 'whatsapp':
-            sendResult = await sendWhatsAppMessage(contact, message);
+            sendResult = await sendWhatsAppMessage(contact, message, countryCode || '92');
             break;
           default:
             throw new Error('Unsupported platform');
         }
-        currentCampaign.results.push({ ...contact, status: 'sent', details: sendResult });
-        updateStats(1, 0); // Increment sent count
+        currentCampaign.results.push({ ...contact, status: sendResult.status, details: sendResult.details || 'Transmission Verified' });
+        
+        if (sendResult.status === 'sent') {
+            updateStats(1, 0); // Only increment sent count if actually sent
+        }
       } catch (e) {
         currentCampaign.results.push({ ...contact, status: 'error', details: e.message });
       } finally {

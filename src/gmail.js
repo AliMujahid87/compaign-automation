@@ -28,12 +28,14 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
   
-  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || 'Recipient';
-  const emailKey = Object.keys(contact).find(k => k.toLowerCase().includes('email'));
-  const emailAddr = (contact[emailKey] || contact.email || '').toString().trim();
+  const keys = Object.keys(contact);
+  const nameKey = keys.find(k => k.includes('name')) || keys[0];
+  const emailKey = keys.find(k => k.includes('email') || k.includes('mail'));
+  const emailAddr = (contact[emailKey] || '').toString().trim();
+  const contactName = contact[nameKey] || 'Recipient';
   
   if (!emailAddr || !emailAddr.includes('@')) {
-    throw new Error(`Invalid or missing email: ${emailAddr || 'None'}`);
+    throw new Error(`Invalid email: ${emailAddr || 'None'}`);
   }
 
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
@@ -88,7 +90,7 @@ async function sendGmailMessage(contact, template, subjectTemplate, attachment =
     userId: 'me',
     requestBody: { raw: encoded },
   });
-  return res.data;
+  return { status: 'sent', details: `Gmail sent successfully (ID: ${res.data.id})` };
 }
 
 function getGmailAuthUrl() {

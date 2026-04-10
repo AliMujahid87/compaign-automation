@@ -9,7 +9,10 @@ let isAuthenticated = false;
 let isInitializing = false;
 
 function initWhatsApp() {
-  if (isInitializing || isAuthenticated) return;
+  if (isInitializing || isAuthenticated) {
+    console.log(`--- WS Init Skip: isInitializing=${isInitializing}, isAuthenticated=${isAuthenticated} ---`);
+    return;
+  }
   isInitializing = true;
   
   console.log('--- Starting WhatsApp Initialization ---');
@@ -24,107 +27,121 @@ function initWhatsApp() {
   for (const p of chromePaths) {
     if (fs.existsSync(p)) {
       executablePath = p;
+      console.log(`Found Chrome at: ${p}`);
       break;
     }
   }
 
-  client = new Client({
-    authStrategy: new LocalAuth({
-      dataPath: path.join(__dirname, '../.wwebjs_auth')
-    }),
-    puppeteer: {
-      headless: true, // Keep headless true for server, but use local chrome
-      executablePath: executablePath || undefined,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-extensions'
-      ],
-    }
-  });
-
-  client.on('qr', (qr) => {
-    isInitializing = false;
-    qrData = qr;
-    isAuthenticated = false;
-    console.log('--- WhatsApp QR Received ---');
-    
-    // Save QR to file so frontend can pick it up
-    const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
-    qrcode.toFile(qrPath, qr, (err) => {
-      if (err) console.error('Error saving QR code:', err);
+  try {
+    client = new Client({
+      authStrategy: new LocalAuth({
+        dataPath: path.join(__dirname, '../.wwebjs_auth')
+      }),
+      puppeteer: {
+        headless: true,
+        executablePath: executablePath || undefined,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-extensions',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          '--no-first-run',
+          '--no-zygote'
+        ],
+      }
     });
-  });
 
-  client.on('ready', () => {
-    console.log('✅ WhatsApp Client is Ready!');
-    isAuthenticated = true;
+    console.log('--- Client instance created, attaching listeners ---');
+
+    client.on('qr', (qr) => {
+      isInitializing = false;
+      qrData = qr;
+      isAuthenticated = false;
+      console.log('--- WhatsApp QR Received ---');
+      
+      const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
+      qrcode.toFile(qrPath, qr, (err) => {
+        if (err) console.error('Error saving QR code:', err);
+      });
+    });
+
+    client.on('ready', () => {
+      console.log('✅ WhatsApp Client is Ready!');
+      isAuthenticated = true;
+      isInitializing = false;
+      qrData = null;
+      const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
+      if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
+    });
+
+    client.on('authenticated', () => {
+      console.log('✅ WhatsApp Authenticated');
+      isAuthenticated = true;
+    });
+
+    client.on('auth_failure', (msg) => {
+      console.error('❌ WhatsApp Auth Failure:', msg);
+      isAuthenticated = false;
+      isInitializing = false;
+    });
+
+    client.on('disconnected', (reason) => {
+      console.log('❌ WhatsApp Disconnected:', reason);
+      isAuthenticated = false;
+      isInitializing = false;
+    });
+
+    console.log('--- Calling client.initialize() ---');
+    client.initialize()
+      .then(() => console.log('🚀 client.initialize() promise resolved'))
+      .catch(err => {
+        console.error('❌ client.initialize() error:', err);
+        isInitializing = false;
+      });
+
+  } catch (err) {
+    console.error('❌ WhatsApp Client Creation Error:', err);
     isInitializing = false;
-    qrData = null;
-    // Clean up QR file
-    const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
-    if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
-  });
-
-  client.on('authenticated', () => {
-    console.log('✅ WhatsApp Authenticated');
-    isAuthenticated = true;
-  });
-
-  client.on('auth_failure', (msg) => {
-    console.error('❌ WhatsApp Auth Failure:', msg);
-    isAuthenticated = false;
-  });
-
-  client.on('disconnected', (reason) => {
-    console.log('❌ WhatsApp Disconnected:', reason);
-    isAuthenticated = false;
-    // Try to re-initialize
-    if (client) {
-        client.initialize().catch(err => console.error('Re-init failed', err));
-    }
-  });
-
-  client.initialize().then(() => {
-    console.log('🚀 WhatsApp Initialized call successful');
-  }).catch(err => {
-    console.error('❌ Failed to initialize WhatsApp:', err);
-    isInitializing = false;
-  });
+  }
 }
 
-async function sendWhatsAppMessage(contact, template) {
+async function sendWhatsAppMessage(contact, template, countryCode = '92') {
   if (!isAuthenticated) {
     throw new Error('WhatsApp not authenticated. Please scan the QR code first.');
   }
 
-  const phoneKey = Object.keys(contact).find(k => 
-    ['phone', 'number', 'whatsapp', 'mobile', 'contact', 'telephone', 'cell'].includes(k.toLowerCase())
-  );
+  const keys = Object.keys(contact);
+  const phoneKey = keys.find(k => k.includes('phone') || k.includes('number') || k.includes('whatsapp') || k.includes('mobile'));
+  const nameKey = keys.find(k => k.includes('name')) || keys[0];
   
   if (!phoneKey || !contact[phoneKey]) {
-      throw new Error(`No phone column found. Headers: ${Object.keys(contact).join(', ')}`);
+      throw new Error(`Phone column not found. Available: ${keys.join(', ')}`);
   }
 
   const phone = contact[phoneKey];
-  const contactName = contact.name || contact.fullname || contact.firstname || contact['first name'] || contact['contact name'] || '';
+  const contactName = contact[nameKey] || 'Recipient';
   const messageBody = template.replace(/{{\s*name\s*}}/gi, contactName);
 
   // Format phone number: remove any non-digit chars
   let cleanPhone = phone.toString().replace(/\D/g, '');
+  const originalRaw = phone.toString().trim();
   
   // High-level normalization
-  if (phone.toString().trim().startsWith('+')) {
+  if (originalRaw.startsWith('+')) {
     // Already international starts with +, keep clean digits
-  } else if (phone.toString().trim().startsWith('00')) {
+  } else if (originalRaw.startsWith('00')) {
     cleanPhone = cleanPhone.substring(2); // Remove leading 00
   } else {
-    // Handle local Pakistan format (03xx...) -> convert to 923xx...
-    if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
-        cleanPhone = '92' + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith('3') && cleanPhone.length === 10) {
-        cleanPhone = '92' + cleanPhone;
+    // Handle Local numbering by prefixing the selected Country Code
+    // If it starts with '0' (like 03xx or 0416), remove the leading zero
+    if (cleanPhone.startsWith('0')) {
+        cleanPhone = countryCode + cleanPhone.substring(1);
+    } 
+    // If it's a standard local number without country code, add it
+    else if (!cleanPhone.startsWith(countryCode)) {
+        cleanPhone = countryCode + cleanPhone;
     }
   }
   

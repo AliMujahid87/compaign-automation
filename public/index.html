@@ -46,6 +46,12 @@
             <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 10px; text-align: center;">Scan with WhatsApp to link</p>
           </div>
         </div>
+          </div>
+        </div>
+        
+        <button onclick="openBlacklist()" class="btn-ghost" style="margin-top: 15px; border-color: var(--error); color: var(--error);">
+          <i class="fas fa-shield-halved"></i> Manage Blacklist
+        </button>
       </nav>
 
       <div style="padding: 20px; background: rgba(255,255,255,0.03); border-radius: 16px;">
@@ -55,6 +61,20 @@
     </aside>
 
     <main>
+      <div class="stats-dashboard">
+          <div class="stat-item">
+              <span class="stat-value stat-accent" id="stat-sent">0</span>
+              <span class="stat-label">Messages Sent</span>
+          </div>
+          <div class="stat-item">
+              <span class="stat-value stat-success" id="stat-leads">0</span>
+              <span class="stat-label">Total Leads</span>
+          </div>
+          <div class="stat-item">
+              <span class="stat-value" id="stat-rate">0%</span>
+              <span class="stat-label">Sync Success</span>
+          </div>
+      </div>
       <header class="section-header">
         <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 5px;">Campaign Assets</h2>
         <p style="color: var(--text-secondary);">Configure your high-impact broadcast message.</p>
@@ -428,7 +448,55 @@
       // Basic CSV export logic would go here
       alert('Report export feature active.');
     };
+
+    // Blacklist & Stats Logic
+    async function openBlacklist() {
+        const res = await fetch('/api/blacklist');
+        const data = await res.json();
+        document.getElementById('blacklistModal').classList.remove('hidden');
+        document.getElementById('blacklistText').value = data.content;
+    }
+
+    function closeBlacklist() {
+        document.getElementById('blacklistModal').classList.add('hidden');
+    }
+
+    async function saveBlacklist() {
+        const content = document.getElementById('blacklistText').value;
+        await fetch('/api/blacklist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        alert('Blacklist Protocol Updated.');
+        closeBlacklist();
+    }
+
+    async function updateDashboardStats() {
+        try {
+            const res = await fetch('/api/stats');
+            const stats = await res.json();
+            document.getElementById('stat-sent').innerText = stats.total_messages_sent || 0;
+            document.getElementById('stat-leads').innerText = stats.total_leads_processed || 0;
+            document.getElementById('stat-rate').innerText = (stats.success_rate || 0) + '%';
+        } catch(e){}
+    }
+    
+    setInterval(updateDashboardStats, 5000);
+    updateDashboardStats();
   </script>
+
+  <div id="blacklistModal" class="modal hidden">
+      <div class="modal-content">
+          <div class="modal-header">
+              <h2 style="color: var(--error);"><i class="fas fa-shield-halved"></i> Security Blacklist</h2>
+              <button onclick="closeBlacklist()" class="close-btn">&times;</button>
+          </div>
+          <p style="color: var(--text-secondary); margin-bottom: 20px;">Leads matching these domains or prefixes will be filtered out to protect account health.</p>
+          <textarea id="blacklistText" class="blacklist-textarea" placeholder="one-per-line.com..."></textarea>
+          <button onclick="saveBlacklist()" class="btn-main" style="background: var(--error);">Update Blacklist</button>
+      </div>
+  </div>
 </body>
 
 </html>

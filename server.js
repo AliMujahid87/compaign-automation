@@ -80,6 +80,42 @@ app.get('/api/campaign/progress', (req, res) => {
   res.json(currentCampaign);
 });
 
+// Analytics & Blacklist Routes
+app.get('/api/stats', (req, res) => {
+  const statsPath = path.join(__dirname, 'stats.json');
+  if (fs.existsSync(statsPath)) {
+    return res.json(JSON.parse(fs.readFileSync(statsPath, 'utf8')));
+  }
+  res.json({});
+});
+
+app.get('/api/blacklist', (req, res) => {
+  const path = require('path').join(__dirname, 'blacklist.txt');
+  if (fs.existsSync(path)) {
+    return res.json({ content: fs.readFileSync(path, 'utf8') });
+  }
+  res.json({ content: "" });
+});
+
+app.post('/api/blacklist', (req, res) => {
+  const path = require('path').join(__dirname, 'blacklist.txt');
+  fs.writeFileSync(path, req.body.content);
+  res.json({ status: 'updated' });
+});
+
+function updateStats(sentCount, leadsCount) {
+    const statsPath = path.join(__dirname, 'stats.json');
+    let stats = { total_messages_sent: 0, total_leads_processed: 0, last_campaign_date: null, success_rate: 0 };
+    if (fs.existsSync(statsPath)) {
+        try { stats = JSON.parse(fs.readFileSync(statsPath, 'utf8')); } catch(e){}
+    }
+    stats.total_messages_sent += sentCount;
+    stats.total_leads_processed += leadsCount;
+    stats.last_campaign_date = new Date().toISOString().split('T')[0];
+    stats.success_rate = Math.round((stats.total_messages_sent / stats.total_leads_processed) * 100) || 0;
+    fs.writeFileSync(statsPath, JSON.stringify(stats, null, 4));
+}
+
 // POST /api/send/:platform
 app.post('/api/send/:platform', upload.single('attachment'), async (req, res) => {
   const platform = req.params.platform.toLowerCase();
@@ -96,6 +132,8 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
       total: contacts.length,
       processed: 0
     };
+
+    updateStats(0, contacts.length); // Increment processed count
 
     // Return immediately to frontend
     res.json({ status: 'started', total: contacts.length });
@@ -115,6 +153,7 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
             throw new Error('Unsupported platform');
         }
         currentCampaign.results.push({ ...contact, status: 'sent', details: sendResult });
+        updateStats(1, 0); // Increment sent count
       } catch (e) {
         currentCampaign.results.push({ ...contact, status: 'error', details: e.message });
       } finally {

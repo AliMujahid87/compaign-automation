@@ -292,6 +292,52 @@ input:focus, textarea:focus {
   font-size: 1.1rem;
 }
 
+.icon-box.large {
+  width: 48px;
+  height: 48px;
+  font-size: 1.5rem;
+}
+
+/* Country Select specific */
+.country-option {
+  justify-content: space-between;
+}
+
+.country-flag {
+  font-size: 1.3rem;
+  margin-right: 12px;
+}
+
+.country-code {
+  font-family: monospace;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: rgba(58, 134, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.delivery-config {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  padding: 25px;
+  border-radius: 20px;
+  margin-bottom: 30px;
+}
+
+.config-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 /* Results */
 .report-section { margin-top: 50px; }
 .table-wrapper {

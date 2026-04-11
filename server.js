@@ -6,7 +6,7 @@ const path = require('path');
 const fetch = require('node-fetch');
 const { parseCSV } = require('./src/utils');
 const { sendGmailMessage, getGmailAuthUrl, getGmailToken } = require('./src/gmail');
-const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus } = require('./src/whatsapp');
+const { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus, resetWhatsApp } = require('./src/whatsapp');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -61,6 +61,11 @@ app.get('/api/whatsapp/status', (req, res) => {
 app.post('/api/whatsapp/init', (req, res) => {
   initWhatsApp();
   res.json({ status: 'initializing' });
+});
+
+app.post('/api/whatsapp/reset', async (req, res) => {
+  await resetWhatsApp();
+  res.json({ status: 'reset' });
 });
 
 // Health check & Progress polling
@@ -138,6 +143,8 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
     // Return immediately to frontend
     res.json({ status: 'started', total: contacts.length });
 
+    const userDelayMs = (parseFloat(req.body.delayMinutes) || 1) * 60 * 1000;
+
     // Process in background
     for (const contact of contacts) {
       try {
@@ -162,9 +169,11 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
       } finally {
         currentCampaign.processed++;
       }
-      // Safety Delay to mimic human behavior and improve delivery
-      const delay = Math.floor(Math.random() * (10000 - 5000 + 1) + 5000); 
-      await new Promise(r => setTimeout(r, delay));
+      
+      // Safety Delay: User defined minutes with 20% random variance
+      const variance = userDelayMs * 0.2;
+      const finalDelay = userDelayMs + (Math.random() * variance * 2 - variance);
+      await new Promise(r => setTimeout(r, Math.max(5000, finalDelay))); // Min 5 sec safety
     }
     currentCampaign.active = false;
 
@@ -176,5 +185,5 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server listening on http://localhost:${PORT}`));
+const PORT = process.env.PORT || 7860;
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server listening on http://0.0.0.0:${PORT}`));

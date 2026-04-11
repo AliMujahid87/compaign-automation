@@ -30,16 +30,25 @@ function initWhatsApp() {
       for (const p of chromePaths) {
         if (fs.existsSync(p)) {
           executablePath = p;
+          console.log(`--- [SYSTEM] Found Browser at: ${p} ---`);
           break;
         }
+      }
+      if (!executablePath) {
+          console.warn('--- [WARNING] No local Chrome/Edge found. Initializing without explicit path. ---');
       }
   }
 
   try {
+    console.log('--- Initializing Puppeteer via whatsapp-web.js ---');
     client = new Client({
       authStrategy: new LocalAuth({
         dataPath: path.join(__dirname, '../.wwebjs_auth')
       }),
+      webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1018247065-alpha.html',
+      },
       puppeteer: {
         headless: true,
         executablePath: executablePath || undefined,
@@ -47,10 +56,10 @@ function initWhatsApp() {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
           '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process'
+          '--proxy-server="direct://"',
+          '--proxy-bypass-list=*'
         ],
       }
     });
@@ -61,7 +70,7 @@ function initWhatsApp() {
       isInitializing = false;
       qrData = qr;
       isAuthenticated = false;
-      console.log('--- WhatsApp QR Received ---');
+      console.log('--- [SIGNAL] WhatsApp QR Received! Check frontend ---');
       
       const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
       qrcode.toFile(qrPath, qr, (err) => {
@@ -70,7 +79,7 @@ function initWhatsApp() {
     });
 
     client.on('ready', () => {
-      console.log('✅ WhatsApp Client is Ready!');
+      console.log('✅ [SUCCESS] WhatsApp Client is Ready!');
       isAuthenticated = true;
       isInitializing = false;
       qrData = null;
@@ -79,27 +88,27 @@ function initWhatsApp() {
     });
 
     client.on('authenticated', () => {
-      console.log('✅ WhatsApp Authenticated');
+      console.log('✅ [AUTH] WhatsApp Authenticated Successfully');
       isAuthenticated = true;
     });
 
     client.on('auth_failure', (msg) => {
-      console.error('❌ WhatsApp Auth Failure:', msg);
+      console.error('❌ [FAILURE] WhatsApp Auth Failure:', msg);
       isAuthenticated = false;
       isInitializing = false;
     });
 
     client.on('disconnected', (reason) => {
-      console.log('❌ WhatsApp Disconnected:', reason);
+      console.log('❌ [DISCONNECTED] WhatsApp Session Ended:', reason);
       isAuthenticated = false;
       isInitializing = false;
     });
 
-    console.log('--- Calling client.initialize() ---');
+    console.log('--- Starting client.initialize() ---');
     client.initialize()
-      .then(() => console.log('🚀 client.initialize() promise resolved'))
+      .then(() => console.log('🚀 Client initialization promise resolved'))
       .catch(err => {
-        console.error('❌ client.initialize() error:', err);
+        console.error('❌ Client initialization error:', err);
         isInitializing = false;
       });
 
@@ -167,11 +176,30 @@ async function sendWhatsAppMessage(contact, template, countryCode = '92') {
   }
 }
 
-function getWhatsAppStatus() {
-  return {
-    authenticated: isAuthenticated,
-    qrAvailable: !!qrData
-  };
+async function resetWhatsApp() {
+  console.log('--- [RESET] Resetting WhatsApp Session ---');
+  if (client) {
+    try { await client.destroy(); } catch (e) { console.error('Error destroying client:', e); }
+  }
+  client = null;
+  qrData = null;
+  isAuthenticated = false;
+  isInitializing = false;
+  
+  // Clear auth data
+  const authPath = path.join(__dirname, '../.wwebjs_auth');
+  if (fs.existsSync(authPath)) {
+    try {
+      fs.rmSync(authPath, { recursive: true, force: true });
+      console.log('--- [RESET] Auth data cleared successfully ---');
+    } catch (e) {
+      console.error('Error clearing auth data:', e);
+    }
+  }
+  
+  // Clear QR image
+  const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
+  if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
 }
 
-module.exports = { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus };
+module.exports = { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus, resetWhatsApp };

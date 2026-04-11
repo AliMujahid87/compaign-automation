@@ -40,6 +40,7 @@
           </div>
           <div id="wa-action-container">
             <button id="genQR" class="btn-ghost">Initialize Client</button>
+            <button id="resetWA" class="btn-ghost" style="border-color: var(--error); color: var(--error); margin-top: 10px;">Reset Session</button>
           </div>
           <div id="qr-container" class="hidden">
             <img id="qr-image" src="" alt="WhatsApp QR" />
@@ -119,16 +120,54 @@
           <input type="file" id="attachment" />
         </div>
 
-        <div class="field" style="margin-top: 20px;">
-          <label>Target Region (for Auto-Formatting)</label>
-          <select id="countryCode" class="btn-ghost" style="width: 100%; text-align: left; background: rgba(255,255,255,0.05); padding: 12px;">
-            <option value="1">United States (+1)</option>
-            <option value="44">United Kingdom (+44)</option>
-            <option value="92" selected>Pakistan (+92)</option>
-            <option value="971">UAE (+971)</option>
-            <option value="1">Canada (+1)</option>
-            <option value="61">Australia (+61)</option>
-          </select>
+        <div class="delivery-config">
+          <div class="config-header">
+            <i class="fas fa-clock"></i> Delivery Optimization
+          </div>
+          <div class="form-grid" style="margin-bottom: 0;">
+            <div class="field">
+              <label>Target Region</label>
+              <div class="custom-select" id="countryWrapper">
+                <div class="select-trigger" id="countryTrigger">
+                  <span id="selectedCountryLabel" style="display: flex; align-items: center; gap: 10px;">
+                    <span class="country-flag">🇵🇰</span> Pakistan
+                  </span>
+                  <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: var(--text-secondary);"></i>
+                </div>
+                <div class="select-options" id="countryOptions">
+                  <div class="option country-option selected" data-value="92" data-label="Pakistan" data-flag="🇵🇰">
+                    <span><span class="country-flag">🇵🇰</span> Pakistan</span>
+                    <span class="country-code">+92</span>
+                  </div>
+                  <div class="option country-option" data-value="1" data-label="United States" data-flag="🇺🇸">
+                    <span><span class="country-flag">🇺🇸</span> United States</span>
+                    <span class="country-code">+1</span>
+                  </div>
+                  <div class="option country-option" data-value="44" data-label="United Kingdom" data-flag="🇬🇧">
+                    <span><span class="country-flag">🇬🇧</span> United Kingdom</span>
+                    <span class="country-code">+44</span>
+                  </div>
+                  <div class="option country-option" data-value="971" data-label="UAE" data-flag="🇦🇪">
+                    <span><span class="country-flag">🇦🇪</span> UAE</span>
+                    <span class="country-code">+971</span>
+                  </div>
+                  <div class="option country-option" data-value="91" data-label="India" data-flag="🇮🇳">
+                    <span><span class="country-flag">🇮🇳</span> India</span>
+                    <span class="country-code">+91</span>
+                  </div>
+                </div>
+                <input type="hidden" id="countryCode" value="92">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Message Delay (Minutes)</label>
+              <div style="position: relative;">
+                <input type="number" id="delayMinutes" value="1" min="0.5" step="0.5" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff; padding: 12px 16px; border-radius: 12px; width: 100%; transition: all 0.3s;" />
+                <span style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: var(--accent); font-weight: 700;">MIN/MSG</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="field audience-field">
@@ -204,6 +243,19 @@
         genQRBtn.innerText = 'Retry Initialization';
         genQRBtn.disabled = false;
         currentlyInitializing = false;
+      }
+    };
+    
+    document.getElementById('resetWA').onclick = async () => {
+      if (!confirm('Are you sure? This will log you out and clear the session.')) return;
+      document.getElementById('resetWA').innerText = 'Resetting...';
+      try {
+        await fetch('/api/whatsapp/reset', { method: 'POST' });
+        alert('Session cleared. You can now re-initialize.');
+        location.reload();
+      } catch (e) {
+        console.error(e);
+        alert('Reset failed.');
       }
     };
 
@@ -290,7 +342,34 @@
       if (!document.getElementById('platformWrapper').contains(e.target)) {
         platformOptions.classList.remove('show');
       }
+      if (!document.getElementById('countryWrapper').contains(e.target)) {
+        document.getElementById('countryOptions').classList.remove('show');
+      }
     };
+
+    // Country Dropdown Logic
+    const countryTrigger = document.getElementById('countryTrigger');
+    const countryOptions = document.getElementById('countryOptions');
+    const countryInput = document.getElementById('countryCode');
+    const selectedCountryLabel = document.getElementById('selectedCountryLabel');
+    const countryOpts = document.querySelectorAll('.country-option');
+
+    countryTrigger.onclick = () => countryOptions.classList.toggle('show');
+
+    countryOpts.forEach(opt => {
+      opt.onclick = () => {
+        const val = opt.getAttribute('data-value');
+        const label = opt.getAttribute('data-label');
+        const flag = opt.getAttribute('data-flag');
+        
+        countryInput.value = val;
+        selectedCountryLabel.innerHTML = `<span class="country-flag">${flag}</span> ${label}`;
+        
+        countryOpts.forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        countryOptions.classList.remove('show');
+      };
+    });
 
     // File Input UI & Preview
     let parsedLeads = [];
@@ -377,6 +456,8 @@
       
       const countryCode = document.getElementById('countryCode').value;
       
+      const delayMinutes = document.getElementById('delayMinutes').value || 1;
+      
       const selectedIndices = Array.from(document.querySelectorAll('.lead-check:checked')).map(ck => parseInt(ck.getAttribute('data-index')));
       const selectedContacts = selectedIndices.map(idx => parsedLeads[idx]);
 
@@ -390,6 +471,7 @@
       formData.append('message', message);
       formData.append('subject', subject);
       formData.append('countryCode', countryCode);
+      formData.append('delayMinutes', delayMinutes);
       if (attachment) formData.append('attachment', attachment);
 
       try {

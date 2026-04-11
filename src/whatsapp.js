@@ -17,19 +17,22 @@ function initWhatsApp() {
   
   console.log('--- Starting WhatsApp Initialization ---');
   
-  // Try to find local Chrome on Windows
-  const chromePaths = [
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-  ];
+  // Detection logic for Chrome: In cloud environments, we let Puppeteer find its own path or use environment vars
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   let executablePath = null;
-  for (const p of chromePaths) {
-    if (fs.existsSync(p)) {
-      executablePath = p;
-      console.log(`Found Chrome at: ${p}`);
-      break;
-    }
+  if (!isProduction) {
+      const chromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+      ];
+      for (const p of chromePaths) {
+        if (fs.existsSync(p)) {
+          executablePath = p;
+          break;
+        }
+      }
   }
 
   try {
@@ -44,11 +47,10 @@ function initWhatsApp() {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-extensions',
           '--disable-gpu',
-          '--disable-software-rasterizer',
           '--no-first-run',
-          '--no-zygote'
+          '--no-zygote',
+          '--single-process'
         ],
       }
     });

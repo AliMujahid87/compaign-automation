@@ -141,13 +141,16 @@ async function sendWhatsAppMessage(contact, template, countryCode = '92') {
   
   // High-level normalization
   if (originalRaw.startsWith('+')) {
-    // Already international starts with +, keep clean digits
+    // Already international starts with +, use the clean digits (which includes country code)
   } else if (originalRaw.startsWith('00')) {
     cleanPhone = cleanPhone.substring(2); // Remove leading 00
   } else {
-    // Handle Local numbering by prefixing the selected Country Code
-    // If it starts with '0' (like 03xx or 0416), remove the leading zero
-    if (cleanPhone.startsWith('0')) {
+    // If it's 10 digits and country code is 1, it's likely a US number without a prefix
+    if (cleanPhone.length === 10 && countryCode === '1') {
+      cleanPhone = '1' + cleanPhone;
+    } 
+    // If it starts with '0' (like 03xx or 0416), remove the leading local zero
+    else if (cleanPhone.startsWith('0')) {
         cleanPhone = countryCode + cleanPhone.substring(1);
     } 
     // If it's a standard local number without country code, add it
@@ -156,6 +159,11 @@ async function sendWhatsAppMessage(contact, template, countryCode = '92') {
     }
   }
   
+  // Final safeguard for US numbers: if it's 11 digits and starts with 1, it's already got the code
+  if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
+      // US Format confirmed
+  }
+
   const chatId = cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
 
   try {
@@ -164,7 +172,7 @@ async function sendWhatsAppMessage(contact, template, countryCode = '92') {
     const isRegistered = await client.isRegisteredUser(chatId).catch(() => false);
     
     if (!isRegistered) {
-        return { status: 'error', details: 'Number not registered on WhatsApp' };
+        return { status: 'invalid', details: 'Number not registered on WhatsApp' };
     }
 
     console.log(`--- Sending to ${chatId} ---`);

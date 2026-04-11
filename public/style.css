@@ -124,7 +124,9 @@ main {
 }
 
 .status-pill.online { background: rgba(100, 255, 218, 0.1); color: var(--success); }
-.status-pill.offline { background: rgba(255, 82, 82, 0.1); color: var(--error); }
+.status-pill.offline { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
+.status-pill.warning { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
+.status-pill.error-pill { background: rgba(255, 82, 82, 0.1); color: var(--error); }
 
 /* Buttons */
 .btn-ghost {

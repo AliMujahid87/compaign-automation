@@ -154,7 +154,7 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
             sendResult = await sendGmailMessage(contact, message, subject, attachment);
             break;
           case 'whatsapp':
-            sendResult = await sendWhatsAppMessage(contact, message, countryCode || '92');
+            sendResult = await sendWhatsAppMessage(contact, message, countryCode || '1');
             break;
           default:
             throw new Error('Unsupported platform');

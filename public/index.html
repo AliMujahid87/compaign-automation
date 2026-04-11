@@ -130,18 +130,18 @@
               <div class="custom-select" id="countryWrapper">
                 <div class="select-trigger" id="countryTrigger">
                   <span id="selectedCountryLabel" style="display: flex; align-items: center; gap: 10px;">
-                    <span class="country-flag">🇵🇰</span> Pakistan
+                    <span class="country-flag">🇺🇸</span> United States
                   </span>
                   <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: var(--text-secondary);"></i>
                 </div>
                 <div class="select-options" id="countryOptions">
-                  <div class="option country-option selected" data-value="92" data-label="Pakistan" data-flag="🇵🇰">
-                    <span><span class="country-flag">🇵🇰</span> Pakistan</span>
-                    <span class="country-code">+92</span>
-                  </div>
-                  <div class="option country-option" data-value="1" data-label="United States" data-flag="🇺🇸">
+                  <div class="option country-option selected" data-value="1" data-label="United States" data-flag="🇺🇸">
                     <span><span class="country-flag">🇺🇸</span> United States</span>
                     <span class="country-code">+1</span>
+                  </div>
+                  <div class="option country-option" data-value="92" data-label="Pakistan" data-flag="🇵🇰">
+                    <span><span class="country-flag">🇵🇰</span> Pakistan</span>
+                    <span class="country-code">+92</span>
                   </div>
                   <div class="option country-option" data-value="44" data-label="United Kingdom" data-flag="🇬🇧">
                     <span><span class="country-flag">🇬🇧</span> United Kingdom</span>
@@ -156,7 +156,7 @@
                     <span class="country-code">+91</span>
                   </div>
                 </div>
-                <input type="hidden" id="countryCode" value="92">
+                <input type="hidden" id="countryCode" value="1">
               </div>
             </div>
 
@@ -531,10 +531,22 @@
             }
         }
 
-        const statusClass = res.status === 'sent' ? 'online' : 'offline';
-        const isError = res.status === 'error' || res.status.includes('fail');
-        const logIcon = isError ? '❌' : (res.status === 'sent' ? '✅' : '⚠️');
-        const logText = res.details || (res.status === 'sent' ? 'Transmission Verified' : 'Pending Verification');
+        let statusClass = 'offline';
+        let logIcon = '⚠️';
+        let logText = res.details || 'Pending Verification';
+
+        if (res.status === 'sent') {
+            statusClass = 'online';
+            logIcon = '✅';
+            logText = 'Transmission Verified';
+        } else if (res.status === 'invalid') {
+            statusClass = 'warning';
+            logIcon = '🚫';
+            logText = 'Not registered on WhatsApp';
+        } else if (res.status === 'error') {
+            statusClass = 'error-pill';
+            logIcon = '❌';
+        }
 
         tr.innerHTML = `
           <td><strong>${ident}</strong></td>

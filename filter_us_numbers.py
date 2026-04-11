@@ -57,11 +57,17 @@ def filter_us_numbers():
                     name = ""
                 
                 # Authenticity check for phone
-                clean_phone = phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+                # Remove all non-digits for cleaning
+                digits = "".join(filter(str.isdigit, phone))
                 
-                if (clean_phone.startswith('+1') and 
-                    len(clean_phone) >= 11 and 
-                    clean_phone[1:].isdigit() and 
+                # US numbers are 10 digits (local) or 11 digits (starting with 1)
+                clean_phone = ""
+                if len(digits) == 10:
+                    clean_phone = "+1" + digits
+                elif len(digits) == 11 and digits.startswith('1'):
+                    clean_phone = "+" + digits
+                
+                if (clean_phone and 
                     clean_phone not in unique_numbers):
                     
                     writer.writerow([name, clean_phone])

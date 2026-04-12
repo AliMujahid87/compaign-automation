@@ -145,7 +145,10 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
 
     const userDelayMs = (parseFloat(req.body.delayMinutes) || 1) * 60 * 1000;
 
-    // Process in background
+    let sentThisBatch = 0;
+    const BATCH_SIZE = 12; // Send 12, then rest
+    const BATCH_REST_MS = 15 * 60 * 1000; // 15 mins rest
+
     for (const contact of contacts) {
       try {
         let sendResult;
@@ -163,6 +166,7 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
         
         if (sendResult.status === 'sent') {
             updateStats(1, 0); // Only increment sent count if actually sent
+            sentThisBatch++;
         }
       } catch (e) {
         currentCampaign.results.push({ ...contact, status: 'error', details: e.message });
@@ -170,10 +174,18 @@ app.post('/api/send/:platform', upload.single('attachment'), async (req, res) =>
         currentCampaign.processed++;
       }
       
-      // Safety Delay: User defined minutes with 20% random variance
-      const variance = userDelayMs * 0.2;
+      // Batch Resting
+      if (sentThisBatch >= BATCH_SIZE) {
+          console.log(`--- [SAFETY] Batch Limit Reached. Resting for 15 minutes... ---`);
+          currentCampaign.results.push({ status: 'info', details: '🔒 Security Pause: Resting for 15 mins to protect account health.' });
+          await new Promise(r => setTimeout(r, BATCH_REST_MS));
+          sentThisBatch = 0;
+      }
+
+      // Safety Delay: User defined minutes with 25% random variance
+      const variance = userDelayMs * 0.25;
       const finalDelay = userDelayMs + (Math.random() * variance * 2 - variance);
-      await new Promise(r => setTimeout(r, Math.max(5000, finalDelay))); // Min 5 sec safety
+      await new Promise(r => setTimeout(r, Math.max(10000, finalDelay))); // Min 10 sec safety
     }
     currentCampaign.active = false;
 

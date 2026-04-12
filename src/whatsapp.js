@@ -176,6 +176,20 @@ async function sendWhatsAppMessage(contact, template, countryCode = '92') {
     }
 
     console.log(`--- Sending to ${chatId} ---`);
+    
+    // Safety Simulation: Human-like behavior
+    try {
+        await client.sendPresenceAvailable(); // Appear Online
+        await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000)); // Pause briefly
+        await client.sendChatStateTyping(chatId); // Show "Typing..."
+        
+        // Dynamic typing time based on message length (approx 10 chars per sec)
+        const typingTime = Math.min(8000, Math.max(3000, (messageBody.length / 10) * 1000));
+        await new Promise(r => setTimeout(r, typingTime));
+    } catch (simErr) {
+        console.warn('Simulation status update failed (non-critical):', simErr.message);
+    }
+
     const msg = await client.sendMessage(chatId, messageBody);
     return { status: 'sent', messageId: msg.id._serialized };
   } catch (err) {
@@ -208,6 +222,15 @@ async function resetWhatsApp() {
   // Clear QR image
   const qrPath = path.join(__dirname, '../public/whatsapp-qr.png');
   if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
+}
+
+function getWhatsAppStatus() {
+  return {
+    authenticated: isAuthenticated,
+    isInitializing,
+    qrAvailable: !!qrData,
+    qrUrl: qrData ? '/whatsapp-qr.png' : null
+  };
 }
 
 module.exports = { initWhatsApp, sendWhatsAppMessage, getWhatsAppStatus, resetWhatsApp };

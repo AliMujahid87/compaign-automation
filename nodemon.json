@@ -1,0 +1,14 @@
+{
+  "ignore": [
+    "*.json",
+    "*.csv",
+    "*.txt",
+    "*.png",
+    ".wwebjs_auth",
+    ".wwebjs_cache",
+    "public",
+    "uploads",
+    "scratch"
+  ],
+  "delay": 2500
+}
